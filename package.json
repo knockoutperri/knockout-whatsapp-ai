@@ -1,0 +1,12 @@
+{
+  "name": "knockout-whatsapp-ai",
+  "version": "1.0.0",
+  "description": "IA para responder WhatsApp automáticamente",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
