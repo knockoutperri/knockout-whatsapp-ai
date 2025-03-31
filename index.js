@@ -1,18 +1,17 @@
-const express = require('express');
-const app = express();
+// index.js const express = require('express'); const { OpenAI } = require('openai'); const app = express(); app.use(express.json());
 
-app.use(express.json());
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-app.post('/webhook', (req, res) => {
-  const message = req.body.message || 'Hola! Soy la IA de Knockout.';
-  return res.send({ reply: message });
-});
+app.post('/webhook', async (req, res) => { const message = req.body.message || '';
 
-app.get('/', (req, res) => {
-  res.send('Knockout WhatsApp AI está funcionando.');
-});
+try { const completion = await openai.chat.completions.create({ model: 'gpt-3.5-turbo', messages: [ { role: 'system', content: 'Sos la inteligencia artificial de la pizzería Knockout. Respondé como si fueras un vendedor, de forma clara, amable y rápida. Hacés los pedidos y respondés dudas.' }, { role: 'user', content: message } ] });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Servidor escuchando en el puerto ${port}`);
-});
+const reply = completion.choices[0].message.content;
+return res.send({ reply });
+
+} catch (err) { console.error('Error con OpenAI:', err); return res.send({ reply: 'Hubo un error, ¿podés repetir eso?' }); } });
+
+app.get('/', (req, res) => { res.send('Knockout WhatsApp AI está funcionando.'); });
+
+const port = process.env.PORT || 3000; app.listen(port, () => { console.log(Servidor escuchando en el puerto ${port}); });
+
