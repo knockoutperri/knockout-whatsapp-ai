@@ -15,3 +15,6 @@ app.get('/', (req, res) => { res.send('Knockout WhatsApp AI está funcionando.')
 
 const port = process.env.PORT || 3000; app.listen(port, () => { console.log(Servidor escuchando en el puerto ${port}); });
 
+app.get('/restart', (req, res) => {
+  return res.send('IA reiniciada');
+});
