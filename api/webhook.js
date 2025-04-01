@@ -6,39 +6,30 @@ export default async function handler(req, res) {
   try {
     const { message } = req.body;
 
-    const reply = await getChatGPTReply(message);
+    // Lógica básica de respuesta según la pregunta
+    let reply = "";
+
+    if (!message || message.trim() === "") {
+      reply = "Hola, ¿en qué te puedo ayudar?";
+    } else {
+      const pregunta = message.toLowerCase();
+
+      if (pregunta.includes("napolitana")) {
+        reply = "¿Te referís a una pizza napolitana o una milanesa napolitana?";
+      } else if (pregunta.includes("pizzanesa")) {
+        reply = "¡Perfecto! ¿Qué gusto querés en tu pizzanesa? (es como una milanesa con gustos de pizza arriba)";
+      } else if (pregunta.includes("pizza para cocinar")) {
+        reply = "Las pizzas para cocinar vienen listas para meter al horno. Tienen la salsa, la muzarella, las aceitunas y los ingredientes del gusto que elijas.";
+      } else if (pregunta.includes("faina con muzza")) {
+        reply = "La fainá con muzza es una porción de fainá servida junto con una porción de muzzarella.";
+      } else {
+        reply = "¿Podrías decirme de otra manera? Así te ayudo mejor.";
+      }
+    }
 
     return res.status(200).json({ reply });
   } catch (error) {
     console.error("Error:", error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
-}
-
-async function getChatGPTReply(message) {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Sos la inteligencia artificial de una pizzería llamada Knockout. Respondé como si fueras un humano, con respuestas naturales, simpáticas y claras. Siempre hablás en español rioplatense. Tenés que responder los mensajes de los clientes, ayudarlos a hacer pedidos y darles toda la info sobre el menú. Si alguien te pregunta por la napolitana, preguntá si se refiere a la pizza o a la milanesa. Si alguien dice pizzanesa, tratala como milanesa y preguntale qué gusto quiere (sola, napolitana, etc.). Tenés una base de datos fija con los productos, descripciones y reglas que no cambia, y otra con los precios actualizados. Respondé siempre basándote en eso.",
-        },
-        {
-          role: "user",
-          content: message,
-        },
-      ],
-      temperature: 0.7,
-    }),
-  });
-
-  const data = await response.json();
-  return data.choices[0].message.content;
 }
