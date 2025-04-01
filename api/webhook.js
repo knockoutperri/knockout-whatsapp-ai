@@ -1,36 +1,32 @@
-import { Configuration, OpenAIApi } from "openai";
+const { Configuration, OpenAIApi } = require("openai");
 
 const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
 const openai = new OpenAIApi(configuration);
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Only POST method is allowed" });
+    return res.status(405).json({ error: "Método no permitido" });
   }
 
-  const { message } = req.body;
-
   try {
+    const userMessage = req.body.message;
+
     const completion = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       messages: [
-        {
-          role: "system",
-          content: "Sos la inteligencia artificial de una pizzería llamada Knockout. Tenés que responder con calidez, claridad y ayudar a tomar pedidos, responder dudas sobre el menú y ofrecer sugerencias.",
-        },
-        {
-          role: "user",
-          content: message,
-        },
+        { role: "system", content: "Sos la inteligencia artificial de la pizzería Knockout. Respondé siempre con buena onda y ayudá a los clientes a hacer su pedido." },
+        { role: "user", content: userMessage },
       ],
     });
 
     const reply = completion.data.choices[0].message.content;
-    return res.status(200).json({ reply });
+
+    res.status(200).json({ reply });
   } catch (error) {
-    console.error("OpenAI Error:", error);
-    return res.status(500).json({ error: "Error procesando la solicitud." });
+    console.error("Error:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
-}
+};
