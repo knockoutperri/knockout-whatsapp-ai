@@ -1,5 +1,9 @@
-const express = require('express');
-const { OpenAI } = require('openai');
+import express from 'express';
+import { OpenAI } from 'openai';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 const app = express();
 app.use(express.json());
 
@@ -10,7 +14,10 @@ app.post('/webhook', async (req, res) => {
     try {
         const completion = await openai.chat.completions.create({
             model: 'gpt-3.5-turbo',
-            messages: [{ role: 'system', content: 'Tu mensaje' }, { role: 'user', content: message }]
+            messages: [
+                { role: 'system', content: 'Tu mensaje' },
+                { role: 'user', content: message }
+            ]
         });
         const reply = completion.choices[0].message.content;
         return res.send({ reply });
@@ -24,12 +31,11 @@ app.get('/', (req, res) => {
     res.send('Knockout WhatsApp AI está funcionando.');
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-    console.log(`Servidor escuchando en el puerto ${port}`);
-});
-
 app.get('/restart', (req, res) => {
     return res.send('IA reiniciada');
 });
 
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+    console.log(`Servidor escuchando en el puerto ${port}`);
+});
