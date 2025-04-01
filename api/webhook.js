@@ -1,32 +1,38 @@
-const { Configuration, OpenAIApi } = require("openai");
-
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-const openai = new OpenAIApi(configuration);
-
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Método no permitido" });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    const userMessage = req.body.message;
+    const { message } = req.body;
 
-    const completion = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      messages: [
-        { role: "system", content: "Sos la inteligencia artificial de la pizzería Knockout. Respondé siempre con buena onda y ayudá a los clientes a hacer su pedido." },
-        { role: "user", content: userMessage },
-      ],
-    });
-
-    const reply = completion.data.choices[0].message.content;
-
-    res.status(200).json({ reply });
+    const reply = await getChatGPTReply(message);
+    return res.status(200).json({ reply });
   } catch (error) {
     console.error("Error:", error);
-    res.status(500).json({ error: "Error interno del servidor" });
+    return res.status(500).json({ error: "Error interno del servidor" });
   }
-};
+}
+
+async function getChatGPTReply(userMessage) {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: userMessage }],
+    }),
+  });
+
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.error.message);
+  }
+
+  return data.choices[0].message.content;
+}
