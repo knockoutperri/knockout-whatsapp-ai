@@ -1,3 +1,5 @@
+import menuData from "./data/menuData.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
@@ -5,29 +7,35 @@ export default async function handler(req, res) {
 
   try {
     const { message } = req.body;
+    const lowerMsg = message.toLowerCase();
 
-    // Lógica básica de respuesta según la pregunta
-    let reply = "";
-
-    if (!message || message.trim() === "") {
-      reply = "Hola, ¿en qué te puedo ayudar?";
-    } else {
-      const pregunta = message.toLowerCase();
-
-      if (pregunta.includes("napolitana")) {
-        reply = "¿Te referís a una pizza napolitana o una milanesa napolitana?";
-      } else if (pregunta.includes("pizzanesa")) {
-        reply = "¡Perfecto! ¿Qué gusto querés en tu pizzanesa? (es como una milanesa con gustos de pizza arriba)";
-      } else if (pregunta.includes("pizza para cocinar")) {
-        reply = "Las pizzas para cocinar vienen listas para meter al horno. Tienen la salsa, la muzarella, las aceitunas y los ingredientes del gusto que elijas.";
-      } else if (pregunta.includes("faina con muzza")) {
-        reply = "La fainá con muzza es una porción de fainá servida junto con una porción de muzzarella.";
-      } else {
-        reply = "¿Podrías decirme de otra manera? Así te ayudo mejor.";
-      }
+    // Reglas específicas
+    if (lowerMsg.includes("napolitana")) {
+      return res.status(200).json({
+        reply: "¿Te referís a una pizza napolitana o una milanesa napolitana?",
+      });
     }
 
-    return res.status(200).json({ reply });
+    if (lowerMsg.includes("pizzanesa")) {
+      return res.status(200).json({
+        reply: "Perfecto, anotamos tu pizzanesa. ¿Con qué gusto la querés? (Sola, napolitana, roquefort, etc.) ¿De carne o de pollo?",
+      });
+    }
+
+    // Buscar coincidencia exacta en productos
+    const producto = menuData.find(p => lowerMsg.includes(p.nombre.toLowerCase()));
+
+    if (producto) {
+      return res.status(200).json({
+        reply: `${producto.nombre}: ${producto.descripcion} Precio: ${producto.precio}`,
+      });
+    }
+
+    // Respuesta general si no reconoce
+    return res.status(200).json({
+      reply: "¿Podrías decirlo de otra forma? Si querés, puedo ayudarte con el menú.",
+    });
+
   } catch (error) {
     console.error("Error:", error);
     return res.status(500).json({ error: "Internal Server Error" });
