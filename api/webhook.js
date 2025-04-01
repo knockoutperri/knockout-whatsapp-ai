@@ -1,4 +1,4 @@
-import menuData from "./data/menuData.js";
+import menuData from "./menuData.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
