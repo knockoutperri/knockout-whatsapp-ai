@@ -35,17 +35,25 @@ export default async function handler(req, res) {
       });
     }
 
-    // Buscar coincidencia exacta en productos
-    const productoEncontrado = menuData.productos.find((p) =>
-      lowerMsg.includes(p.nombre.toLowerCase())
-    );
+    // Buscar coincidencia en nombre o descripción del producto
+    const productoEncontrado = menuData.productos.find((p) => {
+      const nombreCoincide = lowerMsg.includes(p.nombre.toLowerCase());
+      const descripcionCoincide = p.descripcion?.toLowerCase().includes(lowerMsg);
+      return nombreCoincide || descripcionCoincide;
+    });
 
     if (productoEncontrado) {
-      const respuesta = `${productoEncontrado.nombre}: ${productoEncontrado.descripcion}`;
+      const precios = Object.entries(productoEncontrado.tamanos || {})
+        .map(([tam, precio]) => `${tam}: $${precio}`)
+        .join(" | ");
+
+      const respuesta = `${productoEncontrado.nombre}: ${productoEncontrado.descripcion || ""} (${precios})`;
       return res.status(200).json({ reply: respuesta });
     }
 
-    return res.status(200).json({ reply: "¿Podés decirlo de otra forma? No te estoy entendiendo bien." });
+    return res.status(200).json({
+      reply: "¿Podés decirlo de otra forma? No te estoy entendiendo bien."
+    });
   } catch (error) {
     console.error("Error:", error);
     return res.status(500).json({ error: "Internal Server Error" });
