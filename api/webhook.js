@@ -11,42 +11,37 @@ export default async function handler(req, res) {
     const { message } = req.body;
     const lowerMsg = message.toLowerCase();
 
-    // Reglas específicas por gustos duplicados en pizza y milanesa
-    const gustosDuplicados = [
-      "napolitana",
-      "fugazzeta",
-      "roquefort",
-      "3 quesos",
-      "4 quesos",
-      "choclo"
-    ];
-
-    const coincidencia = stringSimilarity.findBestMatch(lowerMsg, gustosDuplicados);
-    const mejorCoincidencia = coincidencia.bestMatch;
-    if (mejorCoincidencia.rating > 0.6) {
-      return res.status(200).json({
-        reply: `¿Te referís a una pizza ${mejorCoincidencia.target} o a una milanesa ${mejorCoincidencia.target}?`
-      });
-    }
-
-    // Si alguien pide una pizzanesa, responder con lógica de milanesa
+    // Si alguien pide una pizzanesa
     if (lowerMsg.includes("pizzanesa")) {
       return res.status(200).json({
         reply: "Perfecto, anotamos tu pizzanesa. ¿Con qué gusto la querés? (Sola, napolitana, fugazzeta, roquefort...) ¿Y de carne o de pollo?"
       });
     }
 
-    // Buscar coincidencia en productos usando similitud
-    const nombresProductos = menuData.productos.map(p => p.nombre.toLowerCase());
-    const similitud = stringSimilarity.findBestMatch(lowerMsg, nombresProductos);
-    const mejorProducto = similitud.bestMatch;
-    if (mejorProducto.rating > 0.6) {
-      const producto = menuData.productos.find(p => p.nombre.toLowerCase() === mejorProducto.target);
-      const respuesta = `${producto.nombre}: ${producto.descripcion}`;
-      return res.status(200).json({ reply: respuesta });
+    // Reglas para productos que pueden ser pizza o milanesa
+    const gustosDuplicados = ["napolitana", "fugazzeta", "roquefort", "3 quesos", "4 quesos", "choclo"];
+    const matchDoble = stringSimilarity.findBestMatch(lowerMsg, gustosDuplicados).bestMatch;
+    if (matchDoble.rating > 0.6) {
+      return res.status(200).json({
+        reply: `¿Te referís a una pizza ${matchDoble.target} o a una milanesa ${matchDoble.target}?`
+      });
     }
 
-    return res.status(200).json({ reply: "¿Podés decirlo de otra forma? No te estoy entendiendo bien." });
+    // Buscar producto por similitud
+    const nombres = menuData.productos.map(p => p.nombre.toLowerCase());
+    const best = stringSimilarity.findBestMatch(lowerMsg, nombres).bestMatch;
+
+    if (best.rating > 0.6) {
+      const producto = menuData.productos.find(p => p.nombre.toLowerCase() === best.target);
+      return res.status(200).json({
+        reply: `${producto.nombre}: ${producto.descripcion}`
+      });
+    }
+
+    return res.status(200).json({
+      reply: "¿Podés decirlo de otra forma? No te estoy entendiendo bien."
+    });
+
   } catch (error) {
     console.error("Error:", error);
     return res.status(500).json({ error: "Internal Server Error" });
