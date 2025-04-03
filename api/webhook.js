@@ -1,43 +1,22 @@
-import menuData from "./menuData.js";
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Método no permitido" });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  try {
-    const { message } = req.body;
-    const lowerMsg = message.toLowerCase();
+  const { Body } = req.body;
+  const mensaje = Body?.toLowerCase();
 
-    // Buscar en pizzas
-    for (const pizza of menuData.pizzas) {
-      if (lowerMsg.includes(pizza.nombre.toLowerCase())) {
-        let respuesta = `La pizza ${pizza.nombre} cuesta:\n`;
-        for (const [tamano, precio] of Object.entries(pizza.tamaños)) {
-          respuesta += `- ${tamano.toUpperCase()}: $${precio}\n`;
-        }
-        return res.status(200).json({ reply: respuesta });
-      }
-    }
-
-    // Buscar en milanesas
-    for (const mila of menuData.milanesas) {
-      if (lowerMsg.includes(mila.nombre.toLowerCase())) {
-        let respuesta = `¿Querés la milanesa ${mila.nombre} de carne o de pollo?\nPrecios:\n`;
-        for (const [tamano, precio] of Object.entries(mila.precios)) {
-          respuesta += `- ${tamano.toUpperCase()}: $${precio}\n`;
-        }
-        return res.status(200).json({ reply: respuesta });
-      }
-    }
-
-    // Si no encontró nada
-    return res.status(200).json({
-      reply: "No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la napolitana?"
-    });
-
-  } catch (error) {
-    console.error("Error en el webhook:", error);
-    return res.status(500).json({ error: "Error interno del servidor" });
+  if (!mensaje) {
+    return res.status(200).json({ reply: "No recibí ningún mensaje." });
   }
+
+  if (mensaje.includes("muzzarella")) {
+    return res.status(200).json({ reply: "La pizza Muzzarella cuesta $9500." });
+  }
+
+  if (mensaje.includes("napolitana")) {
+    return res.status(200).json({ reply: "La pizza Napolitana cuesta $9900." });
+  }
+
+  return res.status(200).json({ reply: "No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?" });
 }
