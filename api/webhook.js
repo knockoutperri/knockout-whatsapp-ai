@@ -1,5 +1,6 @@
 // webhook.js
 import menuData from "./menuData.js";
+import stringSimilarity from "string-similarity";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -28,32 +29,43 @@ export default async function handler(req, res) {
       }
     }
 
-    // Si alguien pide una pizzanesa, responder con lógica de milanesa
+    // Si alguien pide una pizzanesa
     if (lowerMsg.includes("pizzanesa")) {
       return res.status(200).json({
         reply: "Perfecto, anotamos tu pizzanesa. ¿Con qué gusto la querés? (Sola, napolitana, fugazzeta, roquefort...) ¿Y de carne o de pollo?"
       });
     }
 
-    // Buscar coincidencia en nombre o descripción del producto
-    const productoEncontrado = menuData.productos.find((p) => {
-      const nombreCoincide = lowerMsg.includes(p.nombre.toLowerCase());
-      const descripcionCoincide = p.descripcion?.toLowerCase().includes(lowerMsg);
-      return nombreCoincide || descripcionCoincide;
-    });
+    // Buscar coincidencia exacta primero
+    const exactMatch = menuData.productos.find((p) =>
+      lowerMsg.includes(p.nombre.toLowerCase())
+    );
 
-    if (productoEncontrado) {
-      const precios = Object.entries(productoEncontrado.tamanos || {})
-        .map(([tam, precio]) => `${tam}: $${precio}`)
-        .join(" | ");
-
-      const respuesta = `${productoEncontrado.nombre}: ${productoEncontrado.descripcion || ""} (${precios})`;
-      return res.status(200).json({ reply: respuesta });
+    if (exactMatch) {
+      return res.status(200).json({
+        reply: `${exactMatch.nombre}: ${exactMatch.descripcion}`
+      });
     }
 
+    // Buscar con fuzzy matching (errores de tipeo)
+    const nombresMenu = menuData.productos.map(p => p.nombre.toLowerCase());
+    const mejorCoincidencia = stringSimilarity.findBestMatch(lowerMsg, nombresMenu);
+
+    if (mejorCoincidencia.bestMatch.rating >= 0.7) {
+      const producto = menuData.productos.find(p =>
+        p.nombre.toLowerCase() === mejorCoincidencia.bestMatch.target
+      );
+
+      return res.status(200).json({
+        reply: `${producto.nombre}: ${producto.descripcion}`
+      });
+    }
+
+    // Si no entendió
     return res.status(200).json({
       reply: "¿Podés decirlo de otra forma? No te estoy entendiendo bien."
     });
+
   } catch (error) {
     console.error("Error:", error);
     return res.status(500).json({ error: "Internal Server Error" });
