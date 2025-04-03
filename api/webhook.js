@@ -18,5 +18,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ reply: "La pizza Napolitana cuesta $9900." });
   }
 
-  return res.status(200).json({ reply: "No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?" });
+  return res.status(200).json({
+    reply: "No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?",
+  });
 }
