@@ -1,29 +1,27 @@
+import menuData from './menuData';
+
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).send("Method Not Allowed");
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Método no permitido' });
   }
 
   const { Body } = req.body;
-  const mensaje = Body?.toLowerCase();
-
-  let respuesta = "";
+  const mensaje = Body?.toLowerCase().trim();
 
   if (!mensaje) {
-    respuesta = "No recibí ningún mensaje.";
-  } else if (mensaje.includes("muzzarella")) {
-    respuesta = "La pizza Muzzarella cuesta $9500.";
-  } else if (mensaje.includes("napolitana")) {
-    respuesta = "La pizza Napolitana cuesta $9900.";
-  } else {
-    respuesta = "No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?";
+    return res.status(200).json({ reply: 'No recibí ningún mensaje.' });
   }
 
-  const twimlResponse = `
-    <Response>
-      <Message>${respuesta}</Message>
-    </Response>
-  `;
+  // Buscar coincidencia exacta con algún producto del menú
+  for (const categoria in menuData) {
+    for (const producto of menuData[categoria]) {
+      if (mensaje.includes(producto.nombre.toLowerCase())) {
+        return res.status(200).json({ reply: `${producto.nombre}: ${producto.descripcion || 'Sin descripción.'}` });
+      }
+    }
+  }
 
-  res.setHeader("Content-Type", "text/xml");
-  res.status(200).send(twimlResponse.trim());
+  return res.status(200).json({
+    reply: 'No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?',
+  });
 }
