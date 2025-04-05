@@ -1,4 +1,4 @@
-export const pizzasComunes = [
+const pizzasComunes = [
   {
     name: "Muzzarella",
     chica: 8600,
@@ -90,7 +90,7 @@ export const pizzasComunes = [
     gigante: 30000,
     paraCocinar: 11000,
   },
-    {
+  {
     name: "Napolitana con Jamón",
     chica: 11200,
     grande: 16000,
@@ -210,7 +210,8 @@ export const pizzasComunes = [
     paraCocinar: 12500,
   },
 ];
-export const pizzasEspeciales = [
+
+const pizzasEspeciales = [
   {
     name: "Super Ananá",
     chica: 13800,
@@ -366,6 +367,7 @@ export const pizzasEspeciales = [
     paraCocinar: 23000,
   },
 ];
+
 export default {
   pizzasComunes,
   pizzasEspeciales,
