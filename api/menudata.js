@@ -366,3 +366,7 @@ export const pizzasEspeciales = [
     paraCocinar: 23000,
   },
 ];
+export default {
+  pizzasComunes,
+  pizzasEspeciales,
+};
