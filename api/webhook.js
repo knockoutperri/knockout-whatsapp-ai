@@ -13,8 +13,8 @@ export default async function handler(req, res) {
   }
 
   // Buscar coincidencia exacta con algún producto del menú
-  for (const categoria in menuData) {
-    for (const producto of menuData[categoria]) {
+  for (const categoria in menudata) {
+    for (const producto of menudata[categoria]) {
       if (mensaje.includes(producto.name.toLowerCase())) {
         return res.status(200).json({
           reply: `${producto.name}: $${producto.grande}`,
