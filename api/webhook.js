@@ -8,22 +8,26 @@ export default async function handler(req, res) {
   const { Body } = req.body;
   const mensaje = Body?.toLowerCase().trim();
 
-  if (!mensaje) {
-    return res.status(200).json({ reply: 'No recibí ningún mensaje.' });
-  }
+  let respuesta = 'No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?';
 
-  // Buscar coincidencia exacta con algún producto del menú
   for (const categoria in menudata) {
     for (const producto of menudata[categoria]) {
       if (mensaje.includes(producto.name.toLowerCase())) {
-        return res.status(200).json({
-          reply: `${producto.name}: $${producto.grande}`,
-        });
+        respuesta = `${producto.name}: $${producto.grande}`;
+        break;
       }
     }
   }
 
+  // Formato que Twilio necesita para responder por WhatsApp
   return res.status(200).json({
-    reply: 'No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?',
+    messages: [
+      {
+        type: 'text',
+        text: {
+          body: respuesta,
+        },
+      },
+    ],
   });
 }
