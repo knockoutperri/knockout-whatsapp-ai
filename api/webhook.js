@@ -1,5 +1,3 @@
-import menudata from './menudata.js';
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
@@ -8,25 +6,17 @@ export default async function handler(req, res) {
   const { Body } = req.body;
   const mensaje = Body?.toLowerCase().trim();
 
-  let respuesta = 'No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?';
+  const respuesta = `Hola! Tu mensaje fue: "${mensaje}"`;
 
-  for (const categoria in menudata) {
-    for (const producto of menudata[categoria]) {
-      if (mensaje.includes(producto.name.toLowerCase())) {
-        respuesta = `${producto.name}: $${producto.grande}`;
-        break;
-      }
-    }
-  }
-
+  // Twilio espera este formato exacto
   return res.status(200).json({
     messages: [
       {
-        type: 'text',
         text: {
-          body: respuesta,
+          body: respuesta
         },
-      },
-    ],
+        type: 'text'
+      }
+    ]
   });
 }
