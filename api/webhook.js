@@ -19,7 +19,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // Formato que Twilio necesita para responder por WhatsApp
   return res.status(200).json({
     messages: [
       {
