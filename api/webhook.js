@@ -1,5 +1,4 @@
 import menuData from './menuData.js';
-import Fuse from 'fuse.js';
 
 function normalizarTexto(texto) {
   return texto
@@ -10,16 +9,8 @@ function normalizarTexto(texto) {
     .trim();
 }
 
-const fuseOptions = {
-  keys: ['name'],
-  threshold: 0.4,
-};
-
-function buscarProducto(mensaje, productos) {
-  const fuse = new Fuse(productos, fuseOptions);
-  const resultado = fuse.search(mensaje);
-  return resultado.length > 0 ? resultado[0].item : null;
-}
+// Variable para almacenar el contexto de la conversación actual
+let ultimoProductoMencionado = null;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -35,36 +26,43 @@ export default async function handler(req, res) {
     return res.status(200).send('<Response><Message>¡Hola! ¿En qué te puedo ayudar?</Message></Response>');
   }
 
-  const esMilanesa = mensaje.includes('milanesa') || mensaje.includes('pixanesa');
+  // Si detecta una palabra ambigua como "napolitana", pregunta y guarda el producto
+  const ambiguos = ['napolitana', 'fugazzeta', 'roquefort'];
+  if (ambiguos.some(amb => mensaje.includes(amb))) {
+    ultimoProductoMencionado = ambiguos.find(amb => mensaje.includes(amb)); // Guardar "napolitana", "fugazzeta" o "roquefort"
+    return res.status(200).send('<Response><Message>¿Te referís a pizza o a milanesa?</Message></Response>');
+  }
 
-  if (esMilanesa) {
-    const gusto = buscarProducto(mensaje, menuData.milanesas);
-    if (gusto) {
-      return res.status(200).send(`<Response><Message>La ${gusto.name} cuesta:
-• Chica $${gusto.chica}
-• Mediana $${gusto.mediana}
-• Grande $${gusto.grande}
-
-¿Querés que sea de carne o de pollo?</Message></Response>`);
-    }
-  } else {
-    for (const categoria in menuData) {
-      if (categoria === 'milanesas') continue;
-      const producto = buscarProducto(mensaje, menuData[categoria]);
-      if (producto) {
-        if (producto.chica && producto.grande && producto.gigante) {
-          return res.status(200).send(`<Response><Message>La pizza ${producto.name} cuesta:
-• Chica $${producto.chica}
-• Grande $${producto.grande}
-• Gigante $${producto.gigante}</Message></Response>`);
-        } else if (producto.grande) {
-          return res.status(200).send(`<Response><Message>La ${producto.name} cuesta $${producto.grande}.</Message></Response>`);
-        } else if (producto.precio) {
-          return res.status(200).send(`<Response><Message>La ${producto.name} cuesta $${producto.precio}.</Message></Response>`);
+  // Si el cliente responde con "milanesa" o "pizza" y hay un producto guardado
+  if (ultimoProductoMencionado && (mensaje.includes('milanesa') || mensaje.includes('pizza'))) {
+    const tipoProducto = mensaje.includes('milanesa') ? 'milanesa' : 'pizza';
+    // Busca en la categoría correspondiente
+    const categoria = tipoProducto === 'milanesa' ? menuData.milanesas : menuData.pizzasComunes.concat(menuData.pizzasEspeciales, menuData.pizzasRellenas);
+    for (const producto of categoria) {
+      const nombreNormalizado = normalizarTexto(producto.name);
+      if (nombreNormalizado.includes(ultimoProductoMencionado)) {
+        // Encontrado, responder con el detalle del producto
+        if (tipoProducto === 'milanesa') {
+          return res.status(200).send(
+            `<Response><Message>La milanesa ${producto.name} cuesta:\n• Chica $${producto.chica}\n• Mediana $${producto.mediana}\n• Grande $${producto.grande}</Message></Response>`
+          );
+        } else {
+          return res.status(200).send(
+            `<Response><Message>La pizza ${producto.name} cuesta:\n• Chica $${producto.chica}\n• Grande $${producto.grande}\n• Gigante $${producto.gigante}</Message></Response>`
+          );
         }
       }
     }
+    // Si no encuentra el producto, responde con un mensaje genérico
+    return res.status(200).send('<Response><Message>No encontré ese producto en el menú.</Message></Response>');
   }
 
+  // Borrar el último producto mencionado si el mensaje es diferente
+  ultimoProductoMencionado = null;
+
+  // Lógica habitual para otras consultas
+  // ...
+
+  // Si no encuentra nada
   return res.status(200).send('<Response><Message>No encontré ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?</Message></Response>');
 }
