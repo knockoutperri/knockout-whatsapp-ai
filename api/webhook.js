@@ -1,3 +1,12 @@
+function normalizarTexto(texto) {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/gi, '')
+    .toLowerCase()
+    .trim();
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).send('<Response><Message>Método no permitido</Message></Response>');
