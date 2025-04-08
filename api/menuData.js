@@ -404,13 +404,43 @@ export const milanesas = [
   { name: "Milanesa Verdura y Salsa Blanca", chica: 10900, mediana: 21800, grande: 32700 }
 ];
 
+export const tartas = [
+  {
+    name: "Tarta de Verdura",
+    precio: 7000,
+  },
+  {
+    name: "Tarta de Jamón y Queso",
+    precio: 8000,
+  },
+  {
+    name: "Tarta de Choclo",
+    precio: 7500,
+  },
+];
+
+export const tortillas = [
+  {
+    name: "Tortilla de Papa",
+    precio: 6500,
+  },
+  {
+    name: "Tortilla Española",
+    precio: 7500,
+  },
+  {
+    name: "Tortilla con Morrón",
+    precio: 7000,
+  },
+];
 
 export default {
   pizzasComunes,
   pizzasEspeciales,
   pizzasRellenas,
+  milanesas,
   fainas,
   calzones,
-  milanesas,
+  tartas,
+  tortillas,
 };
-
