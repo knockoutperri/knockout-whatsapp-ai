@@ -1,4 +1,4 @@
-import menudata from './menudata.js';
+import menuData from './menudata.js';
 
 function normalizarTexto(texto) {
   return texto
@@ -11,7 +11,7 @@ function normalizarTexto(texto) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método no permitido' });
+    return res.status(405).send(`<Response><Message>Método no permitido</Message></Response>`);
   }
 
   const { Body } = req.body;
@@ -21,37 +21,28 @@ export default async function handler(req, res) {
   // Saludo básico
   const saludos = ['hola', 'buenas', 'buenas noches', 'buen dia', 'buenos dias'];
   if (saludos.some(saludo => mensaje.includes(saludo))) {
-    return res.status(200).json({ reply: '¡Hola! ¿En qué te puedo ayudar?' });
+    return res.status(200).send(`<Response><Message>¡Hola! ¿En qué te puedo ayudar?</Message></Response>`);
   }
 
-  // Buscar en todas las categorías
+  // Buscar producto
   for (const categoria in menuData) {
     for (const producto of menuData[categoria]) {
       const nombreNormalizado = normalizarTexto(producto.name);
       if (mensaje.includes(nombreNormalizado)) {
         if (producto.chica && producto.grande && producto.gigante) {
-          return res.status(200).json({
-            reply:
-              `La pizza ${producto.name} cuesta:\n` +
-              `• Chica $${producto.chica}\n` +
-              `• Grande $${producto.grande}\n` +
-              `• Gigante $${producto.gigante}`
-          });
+          return res.status(200).send(`<Response><Message>La pizza ${producto.name} cuesta:
+• Chica $${producto.chica}
+• Grande $${producto.grande}
+• Gigante $${producto.gigante}</Message></Response>`);
         } else if (producto.grande) {
-          return res.status(200).json({
-            reply: `La ${producto.name} cuesta $${producto.grande}.`
-          });
+          return res.status(200).send(`<Response><Message>La ${producto.name} cuesta $${producto.grande}.</Message></Response>`);
         } else if (producto.precio) {
-          return res.status(200).json({
-            reply: `La ${producto.name} cuesta $${producto.precio}.`
-          });
+          return res.status(200).send(`<Response><Message>La ${producto.name} cuesta $${producto.precio}.</Message></Response>`);
         }
       }
     }
   }
 
-  // Si no encuentra nada
-  return res.status(200).json({
-    reply: 'No encontré ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?'
-  });
+  // No encontró el producto
+  return res.status(200).send(`<Response><Message>No encontré ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?</Message></Response>`);
 }
