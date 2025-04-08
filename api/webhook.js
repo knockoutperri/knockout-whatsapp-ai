@@ -5,29 +5,33 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
-  const { Body, From } = req.body;
+  const { Body } = req.body;
   const mensaje = Body?.toLowerCase().trim();
 
   if (!mensaje) {
     return res.status(200).json({ reply: 'No recibí ningún mensaje.' });
   }
 
-  let respuesta = null;
+  // Saludos simples
+  const saludos = ['hola', 'buenas', 'buenas noches', 'buenas tardes', 'buen día', 'buenos días'];
+  if (saludos.some(saludo => mensaje.includes(saludo))) {
+    return res.status(200).json({
+      reply: '¡Hola! ¿En qué te puedo ayudar? Podés preguntarme por una pizza, por ejemplo: "¿Cuánto cuesta la napolitana?"',
+    });
+  }
 
+  // Respuesta de menú
   for (const categoria in menuData) {
     for (const producto of menuData[categoria]) {
-      const nombre = producto.name.toLowerCase();
-      if (mensaje.includes(nombre)) {
-        respuesta = `La pizza ${producto.name} cuesta:\n• Chica $${producto.chica}\n• Grande $${producto.grande}\n• Gigante $${producto.gigante}`;
-        break;
+      if (mensaje.includes(producto.name.toLowerCase())) {
+        return res.status(200).json({
+          reply: `La pizza ${producto.name} cuesta:\n• Chica $${producto.chica}\n• Grande $${producto.grande}\n• Gigante $${producto.gigante}`,
+        });
       }
     }
-    if (respuesta) break;
   }
 
-  if (!respuesta) {
-    respuesta = 'No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la Muzzarella?';
-  }
-
-  return res.status(200).send(`<Response><Message>${respuesta}</Message></Response>`);
+  return res.status(200).json({
+    reply: 'No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?',
+  });
 }
