@@ -1,15 +1,14 @@
 {
   "name": "knockout-whatsapp-ai",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "type": "module",
-  "main": "index.mjs",
+  "main": "index.js",
   "scripts": {
-    "start": "node index.mjs"
+    "dev": "vercel dev",
+    "start": "node api/webhook.js"
   },
   "dependencies": {
-    "string-similarity": "^4.0.4",
-    "express": "^4.18.2",
-    "openai": "^4.0.0",
-    "dotenv": "^16.0.3"
+    "fuse.js": "^6.6.2",
+    "twilio": "4.15.0"
   }
 }
