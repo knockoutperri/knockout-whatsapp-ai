@@ -3,7 +3,7 @@ import menuData from './menuData.js';
 function normalizarTexto(texto) {
   return texto
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-\u036f]/g, '')
     .replace(/[^\w\s]/gi, '')
     .toLowerCase()
     .trim();
