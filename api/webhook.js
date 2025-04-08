@@ -1,4 +1,4 @@
-import menuData from './menuData.js';
+import menuData from './menudata.js'; // ✅ CORRECTO: en minúscula
 
 function normalizarTexto(texto) {
   return texto
@@ -21,10 +21,12 @@ export default async function handler(req, res) {
   // Saludo básico
   const saludos = ['hola', 'buenas', 'buenas noches', 'buen dia', 'buenos dias'];
   if (saludos.some(saludo => mensaje.includes(saludo))) {
-    return res.status(200).send('<Response><Message>¡Hola! ¿En qué te puedo ayudar?</Message></Response>');
+    return res
+      .status(200)
+      .send('<Response><Message>¡Hola! ¿En qué te puedo ayudar?</Message></Response>');
   }
 
-  // Buscar productos en todas las categorías
+  // Buscar en todas las categorías
   for (const categoria in menuData) {
     for (const producto of menuData[categoria]) {
       const nombreNormalizado = normalizarTexto(producto.name);
@@ -32,32 +34,26 @@ export default async function handler(req, res) {
         let respuesta = '';
 
         if (producto.chica && producto.grande && producto.gigante) {
-          // Pizza
           respuesta =
             `La ${producto.name} cuesta:\n` +
             `• Chica $${producto.chica}\n` +
             `• Grande $${producto.grande}\n` +
             `• Gigante $${producto.gigante}`;
-        } else if (producto.grande && producto.chica) {
-          // Milanesa
-          respuesta =
-            `La ${producto.name} cuesta:\n` +
-            `• Chica $${producto.chica}\n` +
-            `• Mediana $${producto.mediana}\n` +
-            `• Grande $${producto.grande}`;
         } else if (producto.grande) {
           respuesta = `La ${producto.name} cuesta $${producto.grande}.`;
         } else if (producto.precio) {
           respuesta = `La ${producto.name} cuesta $${producto.precio}.`;
         }
 
-        return res.status(200).send(`<Response><Message>${respuesta}</Message></Response>`);
+        return res
+          .status(200)
+          .send(`<Response><Message>${respuesta}</Message></Response>`);
       }
     }
   }
 
-  // Si no se encuentra el producto
-  return res
-    .status(200)
-    .send('<Response><Message>No encontré ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?</Message></Response>');
+  // Si no encuentra nada
+  return res.status(200).send(
+    `<Response><Message>No encontré ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?</Message></Response>`
+  );
 }
