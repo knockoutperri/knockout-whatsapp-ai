@@ -1,4 +1,4 @@
-import menuData from './menuData.js';
+import menudata from './menudata.js';
 
 function normalizarTexto(texto) {
   return texto
