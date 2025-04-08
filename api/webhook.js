@@ -12,22 +12,30 @@ export default async function handler(req, res) {
     return res.status(200).json({ reply: 'No recibí ningún mensaje.' });
   }
 
-  // Buscar en pizzas comunes, especiales y rellenas
-  const categoriasConTamanios = ['pizzasComunes', 'pizzasEspeciales', 'pizzasRellenas'];
-
-  for (const categoria of categoriasConTamanios) {
+  // Recorrer todas las categorías del menú
+  for (const categoria in menuData) {
     for (const producto of menuData[categoria]) {
-      if (mensaje.includes(producto.name.toLowerCase())) {
-        let respuesta = `La pizza ${producto.name} cuesta:`;
-        if (producto.chica) respuesta += `\n• Chica $${producto.chica}`;
-        if (producto.grande) respuesta += `\n• Grande $${producto.grande}`;
-        if (producto.gigante) respuesta += `\n• Gigante $${producto.gigante}`;
-        if (producto.paraCocinar) respuesta += `\n• Para Cocinar $${producto.paraCocinar}`;
-        return res.status(200).json({ reply: respuesta });
+      const nombreProducto = producto.name?.toLowerCase();
+
+      if (nombreProducto && mensaje.includes(nombreProducto)) {
+        // Si tiene tamaño "grande"
+        if (producto.grande) {
+          return res.status(200).json({
+            reply: `${producto.name}: $${producto.grande}`,
+          });
+        }
+
+        // Si tiene campo "precio" (como fainá o calzón)
+        if (producto.precio) {
+          return res.status(200).json({
+            reply: `${producto.name}: $${producto.precio}`,
+          });
+        }
       }
     }
   }
 
-  // Buscar en fainas
-  for (const faina of menuData.fainas) {
-    if (mensaje.includes(faina.name.toLowerCase()))
+  return res.status(200).json({
+    reply: 'No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la Muzzarella?',
+  });
+}
