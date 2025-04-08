@@ -1,3 +1,14 @@
+import menuData from './menuData.js';
+
+function normalizarTexto(texto) {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/gi, '')
+    .toLowerCase()
+    .trim();
+}
+
 // Variable para almacenar el contexto de la conversación actual
 let ultimoProductoMencionado = null;
 
