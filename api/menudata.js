@@ -366,7 +366,35 @@ export const pizzasEspeciales = [
     paraCocinar: 23000,
   },
 ];
+export const pizzasRellenas = [
+  { name: "Fugazzeta rellena", grande: 19500 },
+  { name: "Fugazzeta con Jamón rellena", grande: 21500 },
+  { name: "Fugazzeta con Jamón y Tomate rellena", grande: 23000 },
+  { name: "Fugazzeta con Panceta rellena", grande: 26000 },
+  { name: "Palmitos con Jamón rellena", grande: 26000 },
+  { name: "Roquefort con Jamón rellena", grande: 26000 }
+];
+
+export const fainas = [
+  { name: "Fainá", precio: 2500 },
+  { name: "Fainá con Muzzarella", precio: 4800 }
+];
+
+export const calzones = [
+  { name: "Calzón Napolitano", precio: 9200 },
+  { name: "Calzón Jamón y Morrón", precio: 9700 },
+  { name: "Calzón Calabresa", precio: 9700 },
+  { name: "Calzón Primavera", precio: 9700 },
+  { name: "Calzón Capresse", precio: 9700 },
+  { name: "Calzón Jamón y Palmitos", precio: 9700 },
+  { name: "Calzón Roquefort", precio: 9700 }
+];
+
 export default {
   pizzasComunes,
   pizzasEspeciales,
+  pizzasRellenas,
+  fainas,
+  calzones,
 };
+
