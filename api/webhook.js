@@ -12,30 +12,36 @@ export default async function handler(req, res) {
     return res.status(200).json({ reply: 'No recibí ningún mensaje.' });
   }
 
-  // Recorrer todas las categorías del menú
-  for (const categoria in menuData) {
-    for (const producto of menuData[categoria]) {
-      const nombreProducto = producto.name?.toLowerCase();
+  try {
+    for (const categoria in menuData) {
+      const productos = menuData[categoria];
 
-      if (nombreProducto && mensaje.includes(nombreProducto)) {
-        // Si tiene tamaño "grande"
-        if (producto.grande) {
-          return res.status(200).json({
-            reply: `${producto.name}: $${producto.grande}`,
-          });
-        }
+      for (const producto of productos) {
+        if (!producto.name) continue;
 
-        // Si tiene campo "precio" (como fainá o calzón)
-        if (producto.precio) {
-          return res.status(200).json({
-            reply: `${producto.name}: $${producto.precio}`,
-          });
+        const nombreProducto = producto.name.toLowerCase();
+
+        if (mensaje.includes(nombreProducto)) {
+          if ('grande' in producto) {
+            return res.status(200).json({
+              reply: `${producto.name}: $${producto.grande}`,
+            });
+          }
+
+          if ('precio' in producto) {
+            return res.status(200).json({
+              reply: `${producto.name}: $${producto.precio}`,
+            });
+          }
         }
       }
     }
-  }
 
-  return res.status(200).json({
-    reply: 'No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la Muzzarella?',
-  });
+    return res.status(200).json({
+      reply: 'No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la Muzzarella?',
+    });
+
+  } catch (error) {
+    return res.status(500).json({ error: 'Error interno del servidor.' });
+  }
 }
