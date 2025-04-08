@@ -3,7 +3,7 @@ import menuData from './menuData.js';
 function normalizarTexto(texto) {
   return texto
     .normalize('NFD')
-    .replace(/[̀-\u036f]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\w\s]/gi, '')
     .toLowerCase()
     .trim();
@@ -60,25 +60,8 @@ export default async function handler(req, res) {
   // Borrar el último producto mencionado si el mensaje es diferente
   ultimoProductoMencionado = null;
 
-  // Lógica para buscar en tartas
-  for (const tarta of menuData.tartas) {
-    const nombreNormalizado = normalizarTexto(tarta.name);
-    if (mensaje.includes(nombreNormalizado)) {
-      return res.status(200).send(
-        `<Response><Message>La ${tarta.name} cuesta $${tarta.precio}.</Message></Response>`
-      );
-    }
-  }
-
-  // Lógica para buscar en tortillas
-  for (const tortilla of menuData.tortillas) {
-    const nombreNormalizado = normalizarTexto(tortilla.name);
-    if (mensaje.includes(nombreNormalizado)) {
-      return res.status(200).send(
-        `<Response><Message>La ${tortilla.name} cuesta $${tortilla.precio}.</Message></Response>`
-      );
-    }
-  }
+  // Lógica habitual para otras consultas
+  // ...
 
   // Si no encuentra nada
   return res.status(200).send('<Response><Message>No encontré ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?</Message></Response>');
