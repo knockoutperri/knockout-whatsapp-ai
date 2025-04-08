@@ -1,10 +1,11 @@
 import menuData from './menuData.js';
+import Fuse from 'fuse.js';
 
 function normalizarTexto(texto) {
   return texto
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w\s]/gi, '')
+    .replace(/[\u0300-\u036f]/g, '') // acentos
+    .replace(/[^\w\s]/gi, '') // signos de puntuación
     .toLowerCase()
     .trim();
 }
@@ -18,57 +19,40 @@ export default async function handler(req, res) {
   const mensajeOriginal = Body || '';
   const mensaje = normalizarTexto(mensajeOriginal);
 
-  // Saludo
   const saludos = ['hola', 'buenas', 'buenas noches', 'buen dia', 'buenos dias'];
-  if (saludos.some(saludo => mensaje.includes(saludo))) {
+  if (saludos.some(s => mensaje.includes(s))) {
     return res.status(200).send('<Response><Message>¡Hola! ¿En qué te puedo ayudar?</Message></Response>');
   }
 
-  // Ver si el mensaje menciona "milanesa" o "pizza"
-  const quiereMilanesa = mensaje.includes('milanesa');
-  const quierePizza = mensaje.includes('pizza');
+  let todosLosProductos = [];
 
   for (const categoria in menuData) {
-    for (const producto of menuData[categoria]) {
-      const nombreNormalizado = normalizarTexto(producto.name);
+    todosLosProductos = todosLosProductos.concat(menuData[categoria]);
+  }
 
-      const coincide = mensaje.includes(nombreNormalizado);
-      if (!coincide) continue;
+  const fuse = new Fuse(todosLosProductos, {
+    keys: ['name'],
+    threshold: 0.4, // cuanto más bajo, más exacto (0.4 funciona bien)
+  });
 
-      const esMilanesa = categoria === 'milanesas';
-      const esPizza = categoria.startsWith('pizzas');
+  const resultado = fuse.search(mensaje);
 
-      // Si se pidió "milanesa" y el producto no es milanesa, lo salteamos
-      if (quiereMilanesa && !esMilanesa) continue;
+  if (resultado.length > 0) {
+    const producto = resultado[0].item;
 
-      // Si se pidió "pizza" y el producto no es pizza, lo salteamos
-      if (quierePizza && !esPizza) continue;
-
-      let respuesta = '';
-
-      if (producto.chica && producto.grande && producto.gigante) {
-        respuesta =
-          `La ${producto.name} cuesta:\n` +
-          `• Chica $${producto.chica}\n` +
-          `• Grande $${producto.grande}\n` +
-          `• Gigante $${producto.gigante}`;
-      } else if (producto.grande && producto.mediana && producto.chica) {
-        respuesta =
-          `La ${producto.name} cuesta:\n` +
-          `• Chica $${producto.chica}\n` +
-          `• Mediana $${producto.mediana}\n` +
-          `• Grande $${producto.grande}`;
-      } else if (producto.grande) {
-        respuesta = `La ${producto.name} cuesta $${producto.grande}.`;
-      } else if (producto.precio) {
-        respuesta = `La ${producto.name} cuesta $${producto.precio}.`;
-      }
-
-      return res.status(200).send(`<Response><Message>${respuesta}</Message></Response>`);
+    if (producto.chica && producto.grande && producto.gigante) {
+      return res.status(200).send(`<Response><Message>
+La ${producto.name} cuesta:
+• Chica $${producto.chica}
+• Grande $${producto.grande}
+• Gigante $${producto.gigante}
+</Message></Response>`);
+    } else if (producto.grande) {
+      return res.status(200).send(`<Response><Message>La ${producto.name} cuesta $${producto.grande}.</Message></Response>`);
+    } else if (producto.precio) {
+      return res.status(200).send(`<Response><Message>La ${producto.name} cuesta $${producto.precio}.</Message></Response>`);
     }
   }
 
-  return res
-    .status(200)
-    .send('<Response><Message>No encontré ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?</Message></Response>');
+  return res.status(200).send(`<Response><Message>No encontré ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?</Message></Response>`);
 }
