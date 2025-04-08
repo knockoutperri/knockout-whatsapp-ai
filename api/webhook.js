@@ -12,23 +12,14 @@ export default async function handler(req, res) {
     return res.status(200).json({ reply: 'No recibí ningún mensaje.' });
   }
 
-  // Si el mensaje es un saludo
-  const saludos = ['hola', 'buenas', 'buenas noches', 'buen día', 'buenas tardes'];
-  if (saludos.some(s => mensaje.includes(s))) {
-    return res.status(200).json({
-      reply: '¡Hola! Bienvenido a Knockout. ¿Qué te gustaría pedir o consultar hoy?',
-    });
-  }
+  // Unificamos todos los productos de todas las categorías
+  const todasLasCategorias = Object.values(menuData).flat();
 
-  // Buscar el producto en el menú
-  for (const categoria in menuData) {
-    for (const producto of menuData[categoria]) {
-      const nombreProducto = producto.name.toLowerCase();
-      if (mensaje.includes(nombreProducto)) {
-        return res.status(200).json({
-          reply: `La pizza ${producto.name} cuesta $${producto.grande}.`,
-        });
-      }
+  for (const producto of todasLasCategorias) {
+    if (mensaje.includes(producto.name.toLowerCase())) {
+      return res.status(200).json({
+        reply: `La pizza ${producto.name} cuesta $${producto.grande}.`,
+      });
     }
   }
 
