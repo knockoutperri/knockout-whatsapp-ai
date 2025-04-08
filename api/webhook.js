@@ -9,8 +9,34 @@ function normalizarTexto(texto) {
     .trim();
 }
 
-// Variable para almacenar el contexto de la conversación actual
-let ultimoProductoMencionado = null;
+function extraerEmpanadasYCalcular(mensaje) {
+  const gustosValidos = menuData.empanadas.map(e => normalizarTexto(e.name));
+  const regexCantidadGusto = /(\d+)\s+de\s+([a-zA-Z\s]+)/g;
+  let match;
+  let totalEmpanadas = 0;
+  let desglose = [];
+
+  while ((match = regexCantidadGusto.exec(mensaje)) !== null) {
+    const cantidad = parseInt(match[1]);
+    const gusto = normalizarTexto(match[2]);
+    const gustoReal = gustosValidos.find(g => gusto.includes(g));
+    if (gustoReal) {
+      desglose.push({ cantidad, gusto: gustoReal });
+      totalEmpanadas += cantidad;
+    }
+  }
+
+  if (totalEmpanadas === 0) return null;
+
+  const total = (totalEmpanadas === 12) ? 20000 : totalEmpanadas * 1800;
+
+  return {
+    texto: `Pediste ${totalEmpanadas} empanadas:\n` +
+           desglose.map(e => `• ${e.cantidad} de ${e.gusto}`).join('\n') +
+           `\nTotal: $${total}`,
+    total
+  };
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -22,47 +48,38 @@ export default async function handler(req, res) {
   const mensaje = normalizarTexto(mensajeOriginal);
 
   const saludos = ['hola', 'buenas', 'buenas noches', 'buen dia', 'buenos dias'];
-  if (saludos.some(saludo => mensaje.includes(saludo))) {
+  if (saludos.some(s => mensaje.includes(s))) {
     return res.status(200).send('<Response><Message>¡Hola! ¿En qué te puedo ayudar?</Message></Response>');
   }
 
-  // Si detecta una palabra ambigua como "napolitana", pregunta y guarda el producto
-  const ambiguos = ['napolitana', 'fugazzeta', 'roquefort'];
-  if (ambiguos.some(amb => mensaje.includes(amb))) {
-    ultimoProductoMencionado = ambiguos.find(amb => mensaje.includes(amb)); // Guardar "napolitana", "fugazzeta" o "roquefort"
-    return res.status(200).send('<Response><Message>¿Te referís a pizza o a milanesa?</Message></Response>');
+  const resultadoEmpanadas = extraerEmpanadasYCalcular(mensaje);
+  if (resultadoEmpanadas) {
+    return res.status(200).send(`<Response><Message>${resultadoEmpanadas.texto}</Message></Response>`);
   }
 
-  // Si el cliente responde con "milanesa" o "pizza" y hay un producto guardado
-  if (ultimoProductoMencionado && (mensaje.includes('milanesa') || mensaje.includes('pizza'))) {
-    const tipoProducto = mensaje.includes('milanesa') ? 'milanesa' : 'pizza';
-    // Busca en la categoría correspondiente
-    const categoria = tipoProducto === 'milanesa' ? menuData.milanesas : menuData.pizzasComunes.concat(menuData.pizzasEspeciales, menuData.pizzasRellenas);
-    for (const producto of categoria) {
+  for (const categoria in menuData) {
+    for (const producto of menuData[categoria]) {
       const nombreNormalizado = normalizarTexto(producto.name);
-      if (nombreNormalizado.includes(ultimoProductoMencionado)) {
-        // Encontrado, responder con el detalle del producto
-        if (tipoProducto === 'milanesa') {
+      if (mensaje.includes(nombreNormalizado)) {
+        if (producto.chica && producto.mediana && producto.grande) {
+          // Milanesa
           return res.status(200).send(
-            `<Response><Message>La milanesa ${producto.name} cuesta:\n• Chica $${producto.chica}\n• Mediana $${producto.mediana}\n• Grande $${producto.grande}</Message></Response>`
+            `<Response><Message>La milanesa ${producto.name} cuesta:\n• Chica $${producto.chica}\n• Mediana $${producto.mediana}\n• Grande $${producto.grande}\n¿La querés de carne o de pollo?</Message></Response>`
           );
-        } else {
+        } else if (producto.chica && producto.grande && producto.gigante) {
+          // Pizza
           return res.status(200).send(
             `<Response><Message>La pizza ${producto.name} cuesta:\n• Chica $${producto.chica}\n• Grande $${producto.grande}\n• Gigante $${producto.gigante}</Message></Response>`
+          );
+        } else if (producto.precio) {
+          // Producto con precio único
+          return res.status(200).send(
+            `<Response><Message>La ${producto.name} cuesta $${producto.precio}.</Message></Response>`
           );
         }
       }
     }
-    // Si no encuentra el producto, responde con un mensaje genérico
-    return res.status(200).send('<Response><Message>No encontré ese producto en el menú.</Message></Response>');
   }
 
-  // Borrar el último producto mencionado si el mensaje es diferente
-  ultimoProductoMencionado = null;
-
-  // Lógica habitual para otras consultas
-  // ...
-
-  // Si no encuentra nada
   return res.status(200).send('<Response><Message>No encontré ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?</Message></Response>');
 }
