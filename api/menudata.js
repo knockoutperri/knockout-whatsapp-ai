@@ -90,7 +90,7 @@ export const pizzasComunes = [
     gigante: 30000,
     paraCocinar: 11000,
   },
-    {
+  {
     name: "Napolitana con Jamón",
     chica: 11200,
     grande: 16000,
@@ -210,6 +210,7 @@ export const pizzasComunes = [
     paraCocinar: 12500,
   },
 ];
+
 export const pizzasEspeciales = [
   {
     name: "Super Ananá",
@@ -366,6 +367,7 @@ export const pizzasEspeciales = [
     paraCocinar: 23000,
   },
 ];
+
 export const pizzasRellenas = [
   { name: "Fugazzeta rellena", grande: 19500 },
   { name: "Fugazzeta con Jamón rellena", grande: 21500 },
@@ -397,4 +399,3 @@ export default {
   fainas,
   calzones,
 };
-
