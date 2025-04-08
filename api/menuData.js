@@ -434,13 +434,69 @@ export const tortillas = [
   },
 ];
 
+export const empanadas = [
+  { name: "Empanada de Carne", unidad: 1800, docena: 20000 },
+  { name: "Empanada de Carne a Cuchillo", unidad: 1800, docena: 20000 },
+  { name: "Empanada de Pollo", unidad: 1800, docena: 20000 },
+  { name: "Empanada de Jamón y Queso", unidad: 1800, docena: 20000 },
+  { name: "Empanada de Humita", unidad: 1800, docena: 20000 },
+  { name: "Empanada de Roquefort", unidad: 1800, docena: 20000 },
+  { name: "Empanada de Queso y Cebolla", unidad: 1800, docena: 20000 },
+  { name: "Empanada de Verdura", unidad: 1800, docena: 20000 },
+  { name: "Empanada Caprese", unidad: 1800, docena: 20000 },
+  { name: "Empanada de Panceta y Morrón", unidad: 1800, docena: 20000 },
+  { name: "Empanada de Panceta y Ciruela", unidad: 1800, docena: 20000 },
+  { name: "Empanada de Apio, Roquefort y Nuez", unidad: 1800, docena: 20000 }
+];
+export const canastitas = [
+  { name: "Jamón y Muzzarella", precio: 2800 },
+  { name: "Panceta y Muzzarella", precio: 2800 },
+  { name: "Roquefort", precio: 2800 },
+  { name: "Calabresa", precio: 2800 },
+  { name: "Tomate seco", precio: 2800 },
+  { name: "Caprese", precio: 2800 },
+  { name: "Muzzarella y Cebolla", precio: 2800 },
+  { name: "Jamón crudo y Rúcula", precio: 2800 },
+  { name: "4 Quesos", precio: 2800 },
+  { name: "Calabaza", precio: 2800 }
+];
+export const bebidas = [
+  { name: "Coca-Cola 500ml", precio: 2000 },
+  { name: "Coca-Cola 1.75L", precio: 3500 },
+  { name: "Fanta 500ml", precio: 2000 },
+  { name: "Fanta 1.75L", precio: 3500 },
+  { name: "Sprite 500ml", precio: 2000 },
+  { name: "Sprite 1.75L", precio: 3500 },
+  { name: "Levite Naranja 500ml", precio: 1500 },
+  { name: "Levite Naranja 1.5L", precio: 3000 },
+  { name: "Levite Manzana 500ml", precio: 1500 },
+  { name: "Levite Manzana 1.5L", precio: 3000 },
+  { name: "Levite Pomelo 500ml", precio: 1500 },
+  { name: "Levite Pomelo 1.5L", precio: 3000 },
+  { name: "Levite Pera 500ml", precio: 1500 },
+  { name: "Levite Pera 1.5L", precio: 3000 },
+  { name: "Agua Mineral 500ml", precio: 1200 },
+  { name: "Agua Mineral 1.5L", precio: 2200 },
+  { name: "Heineken 500ml", precio: 3000 },
+  { name: "Sol 500ml", precio: 3000 },
+  { name: "Grolsch 500ml", precio: 3000 },
+  { name: "Imperial IPA 500ml", precio: 2400 },
+  { name: "Imperial Stout 500ml", precio: 2400 },
+  { name: "Golden 500ml", precio: 2400 },
+  { name: "Imperial Lager 500ml", precio: 2400 },
+  { name: "Miller 500ml", precio: 2400 },
+  { name: "Corona 710ml", precio: 5500 }
+];
 export default {
   pizzasComunes,
   pizzasEspeciales,
   pizzasRellenas,
-  milanesas,
   fainas,
   calzones,
+  milanesas,
   tartas,
   tortillas,
+  empanadas,
+  canastitas,
+  bebidas,
 };
