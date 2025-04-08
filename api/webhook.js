@@ -1,4 +1,4 @@
-import menuData from './menudata.js';
+import menuData from './menuData.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -12,36 +12,27 @@ export default async function handler(req, res) {
     return res.status(200).json({ reply: 'No recibí ningún mensaje.' });
   }
 
-  try {
-    for (const categoria in menuData) {
-      const productos = menuData[categoria];
+  // Respuesta si el cliente dice hola o algo parecido
+  const saludos = ['hola', 'buenas', 'holaaa', 'buenas noches', 'buenos días'];
+  if (saludos.some(s => mensaje.includes(s))) {
+    return res.status(200).json({
+      reply: '¡Hola! 😊 ¿Qué querés pedir hoy? Podés preguntarme el precio de una pizza, empanada o lo que necesites.',
+    });
+  }
 
-      for (const producto of productos) {
-        if (!producto.name) continue;
-
-        const nombreProducto = producto.name.toLowerCase();
-
-        if (mensaje.includes(nombreProducto)) {
-          if ('grande' in producto) {
-            return res.status(200).json({
-              reply: `${producto.name}: $${producto.grande}`,
-            });
-          }
-
-          if ('precio' in producto) {
-            return res.status(200).json({
-              reply: `${producto.name}: $${producto.precio}`,
-            });
-          }
-        }
+  // Buscar coincidencia exacta con algún producto del menú
+  for (const categoria in menuData) {
+    for (const producto of menuData[categoria]) {
+      if (mensaje.includes(producto.name.toLowerCase())) {
+        const precio = producto.grande ?? producto.precio;
+        return res.status(200).json({
+          reply: `${producto.name}: $${precio}`,
+        });
       }
     }
-
-    return res.status(200).json({
-      reply: 'No anoté ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la Muzzarella?',
-    });
-
-  } catch (error) {
-    return res.status(500).json({ error: 'Error interno del servidor.' });
   }
+
+  return res.status(200).json({
+    reply: 'No encontré ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la Muzzarella?',
+  });
 }
