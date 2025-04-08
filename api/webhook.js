@@ -3,7 +3,7 @@ import menuData from './menuData.js';
 function normalizarTexto(texto) {
   return texto
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[^\w\s]/gi, '')
     .toLowerCase()
     .trim();
@@ -59,9 +59,6 @@ export default async function handler(req, res) {
 
   // Borrar el último producto mencionado si el mensaje es diferente
   ultimoProductoMencionado = null;
-
-  // Lógica habitual para otras consultas
-  // ...
 
   // Si no encuentra nada
   return res.status(200).send('<Response><Message>No encontré ese producto en el menú. Podés escribir por ejemplo: ¿Cuánto está la muzzarella?</Message></Response>');
