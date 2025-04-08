@@ -392,10 +392,45 @@ export const calzones = [
   { name: "Calzón Roquefort", precio: 9700 }
 ];
 
+export const milanesas = [
+  {
+    name: "Milanesa Sola",
+    chica: 9100,
+    mediana: 18200,
+    grande: 27300,
+  },
+  {
+    name: "Milanesa a Caballo",
+    chica: 11500,
+    mediana: 23000,
+    grande: 34500,
+  },
+  {
+    name: "Milanesa Napolitana",
+    chica: 14000,
+    mediana: 28000,
+    grande: 42000,
+  },
+  {
+    name: "Milanesa Fugazzeta",
+    chica: 10800,
+    mediana: 21600,
+    grande: 32400,
+  },
+  {
+    name: "Milanesa Roquefort",
+    chica: 14400,
+    mediana: 28800,
+    grande: 43200,
+  }
+];
+
 export default {
   pizzasComunes,
   pizzasEspeciales,
   pizzasRellenas,
   fainas,
   calzones,
+  milanesas,
 };
+
