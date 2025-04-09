@@ -1,149 +1,63 @@
-import twilio from 'twilio';
-const MessagingResponse = twilio.twiml.MessagingResponse;
 import menuData from './menuData.js';
+import { OpenAI } from 'openai';
 
-function normalizarTexto(texto) {
-  return texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w\s]/gi, '')
-    .toLowerCase()
-    .trim();
-}
-
-function obtenerSaludo() {
-  const hora = new Date().getHours();
-  if (hora < 13) return 'Buen día';
-  if (hora < 20.5) return 'Buenas tardes';
-  return 'Buenas noches';
-}
-
-function obtenerDemora(nombreProducto) {
-  const normales = ['pizza', 'empanada', 'tarta', 'canastita'];
-  const medianas = ['milanesa'];
-  const largas = ['rellena', 'calzon', 'tortilla'];
-  const texto = normalizarTexto(nombreProducto);
-
-  if (largas.some(e => texto.includes(e))) return '20 a 25 minutos';
-  if (medianas.some(e => texto.includes(e))) return '15 minutos';
-  if (normales.some(e => texto.includes(e))) return '10 minutos';
-  return null;
-}
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).send('Método no permitido');
-  }
+  const twilio = await import('twilio');
+  const MessagingResponse = twilio.default.twiml.MessagingResponse;
 
-  const { Body } = req.body;
-  const mensajeOriginal = Body || '';
-  const mensaje = normalizarTexto(mensajeOriginal);
   const twiml = new MessagingResponse();
+  const message = req.body.Body || '';
+  const lowerMessage = message.toLowerCase().trim();
 
-  // Saludo inicial
-  const saludos = ['hola', 'buenas', 'buen dia', 'buenos dias', 'buenas tardes', 'buenas noches'];
-  if (saludos.some(s => mensaje.includes(s))) {
-    twiml.message(`${obtenerSaludo()}, ¿qué querés hacer?\n📌 Escribí:\n- "Ver menú"\n- "Quiero hacer un pedido"`);
+  // Saludo inteligente según la hora
+  const now = new Date();
+  const hora = now.getHours();
+  let saludo = '¡Buenas tardes!';
+  if (hora < 13) saludo = '¡Buen día!';
+  else if (hora >= 20) saludo = '¡Buenas noches!';
+
+  // Inicio con botones
+  if (['hola', 'buenas', 'buen día', 'buenas tardes', 'buenas noches'].some(txt => lowerMessage.includes(txt))) {
+    twiml.message(`${saludo} ¿Querés ver el menú o ya sabés qué pedir?\n\n👉 Ver menú\n👉 Quiero hacer un pedido`);
     return res.status(200).send(twiml.toString());
   }
 
-  // Envío de menú por imagen
-  if (mensaje.includes('pizza')) {
-    twiml.message().media('https://i.imgur.com/HqKEm1m.jpg');
-    return res.status(200).send(twiml.toString());
-  }
-
-  if (
-    mensaje.includes('milanesa') || mensaje.includes('empanada') ||
-    mensaje.includes('tarta') || mensaje.includes('canastita') ||
-    mensaje.includes('bebida') || mensaje.includes('tortilla')
-  ) {
-    twiml.message().media('https://i.imgur.com/eyOZgyH.jpg');
-    return res.status(200).send(twiml.toString());
-  }
-
-  // Consultas por categoría
-  const categorias = {
-    tortillas: menuData.tortillas,
-    tartas: menuData.tartas,
-    milanesas: menuData.milanesas,
-    fainas: menuData.fainas,
-    calzones: menuData.calzones,
-    canastitas: menuData.canastitas,
-    bebidas: menuData.bebidas
-  };
-
-  for (const cat in categorias) {
-    if (mensaje.includes(cat.slice(0, -1))) {
-      const lista = categorias[cat].map(p => `${p.name} - $${p.precio || p.grande}`).join('\n');
-      twiml.message(`Sí, tenemos estas opciones:\n${lista}`);
-      return res.status(200).send(twiml.toString());
-    }
-  }
-
-  // Pedido de empanadas
-  if (mensaje.includes('empanada')) {
-    const cantidades = mensaje.match(/\d+/g)?.map(n => parseInt(n)) || [];
-    const total = cantidades.reduce((a, b) => a + b, 0);
-    let respuesta = `Tenemos ${total} empanadas.`;
-
-    if (total === 12) {
-      respuesta += `\n💰 Precio por docena: $20000.`;
-    } else {
-      respuesta += `\n💰 Precio por unidad: $1800.`;
-    }
-
-    respuesta += `\n¿Querés agregar algo más?\n📌 Escribí:\n- "Sí"\n- "No"`;
-    twiml.message(respuesta);
-    return res.status(200).send(twiml.toString());
-  }
-
-  // Aclaración carne o cuchillo
-  if (mensaje.includes('empanada de carne')) {
-    twiml.message('¿La empanada de carne la querés de carne picada o de carne a cuchillo?');
-    return res.status(200).send(twiml.toString());
-  }
-
-  if (mensaje.includes('carne picante')) {
-    twiml.message('Ninguna empanada es picante. Todas son suaves, sabrosas y sin picante.');
-    return res.status(200).send(twiml.toString());
-  }
-
-  // Respuesta por producto específico
-  for (const categoria in menuData) {
-    for (const producto of menuData[categoria]) {
-      const nombre = normalizarTexto(producto.name);
-      if (mensaje.includes(nombre)) {
-        let respuesta = `✅ ${producto.name}:\n`;
-        if (producto.chica || producto.mediana || producto.grande) {
-          if (producto.chica) respuesta += `• Chica: $${producto.chica}\n`;
-          if (producto.mediana) respuesta += `• Mediana: $${producto.mediana}\n`;
-          if (producto.grande) respuesta += `• Grande: $${producto.grande}\n`;
-        } else {
-          respuesta += `• Precio: $${producto.precio}\n`;
+  // Procesamiento con inteligencia artificial real
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: `Sos un asistente de una pizzería llamada Knock Out. Respondé como un humano, con buena onda, pero sin exagerar. 
+          Usá esta base de datos como referencia para responder precios, aclaraciones, ingredientes y tamaños: ${JSON.stringify(menuData)}.
+          Si alguien pide una empanada de carne, preguntá si la quiere picada o a cuchillo.
+          Si pide 12 empanadas, cobrales $20000 en total. Si pide menos, es $1800 cada una. Nunca aclares esto si no lo preguntan.
+          Siempre que alguien haga un pedido, preguntá: "¿Querés agregar algo más al pedido?" y mostrá botones Sí / No.
+          Si preguntan por pizzas, mandá la imagen del menú de pizzas.
+          Si preguntan por milanesas, tartas, tortillas, empanadas o canastitas, mandá la otra imagen.
+          Respondé de forma flexible ante errores ortográficos, mayúsculas y signos. Usá el mismo estilo que el cliente.
+          Siempre respondé en español.`
+        },
+        {
+          role: 'user',
+          content: message,
         }
+      ],
+      temperature: 0.6,
+    });
 
-        const demora = obtenerDemora(producto.name);
-        if (demora) {
-          respuesta += `🕒 Tiempo estimado: ${demora}`;
-        }
+    const aiReply = completion.choices[0].message.content;
+    twiml.message(aiReply);
+    return res.status(200).send(twiml.toString());
 
-        twiml.message(respuesta.trim());
-        return res.status(200).send(twiml.toString());
-      }
-    }
-  }
-
-  // Frases típicas para comenzar pedido
-  if (
-    mensaje.includes('hacer un pedido') || mensaje.includes('quiero pedir') ||
-    mensaje.includes('encargar') || mensaje.includes('pedir una') || mensaje.includes('tomame')
-  ) {
-    twiml.message('Perfecto, decime qué querés pedir y te paso el total.');
+  } catch (error) {
+    console.error('Error con OpenAI:', error);
+    twiml.message('Perdoná, tuve un problema para procesar tu mensaje. ¿Podés repetirlo?');
     return res.status(200).send(twiml.toString());
   }
-
-  // Si no entendió
-  twiml.message('Disculpá, no entendí bien. ¿Querés ver el menú o hacer un pedido?');
-  return res.status(200).send(twiml.toString());
 }
