@@ -18,15 +18,6 @@ function obtenerSaludo() {
   return 'Buenas noches';
 }
 
-function crearBotones(twiml, texto, opciones = []) {
-  const message = twiml.message();
-  message.body(texto);
-  const interactive = message.interactive('button');
-  opciones.forEach(opcion => {
-    interactive.button({ type: 'reply', reply: { id: opcion, title: opcion } });
-  });
-}
-
 function obtenerDemora(nombreProducto) {
   const normales = ['pizza', 'empanada', 'tarta', 'canastita'];
   const medianas = ['milanesa'];
@@ -49,25 +40,29 @@ export default async function handler(req, res) {
   const mensaje = normalizarTexto(mensajeOriginal);
   const twiml = new MessagingResponse();
 
-  // Saludo inicial con botones
+  // Saludo inicial
   const saludos = ['hola', 'buenas', 'buen dia', 'buenos dias', 'buenas tardes', 'buenas noches'];
   if (saludos.some(s => mensaje.includes(s))) {
-    crearBotones(twiml, `${obtenerSaludo()}, ¿querés ver el menú o ya sabés qué pedir?`, ['Ver menú', 'Quiero hacer un pedido']);
+    twiml.message(`${obtenerSaludo()}, ¿qué querés hacer?\n📌 Escribí:\n- "Ver menú"\n- "Quiero hacer un pedido"`);
     return res.status(200).send(twiml.toString());
   }
 
   // Envío de menú por imagen
   if (mensaje.includes('pizza')) {
-    twiml.message().media('https://i.imgur.com/HqKEm1m.jpg'); // Pizzas, calzones, fainá
+    twiml.message().media('https://i.imgur.com/HqKEm1m.jpg');
     return res.status(200).send(twiml.toString());
   }
 
-  if (mensaje.includes('milanesa') || mensaje.includes('empanada') || mensaje.includes('tarta') || mensaje.includes('canastita') || mensaje.includes('bebida') || mensaje.includes('tortilla')) {
-    twiml.message().media('https://i.imgur.com/eyOZgyH.jpg'); // Milanesas, tartas, tortillas, empanadas, canastitas
+  if (
+    mensaje.includes('milanesa') || mensaje.includes('empanada') ||
+    mensaje.includes('tarta') || mensaje.includes('canastita') ||
+    mensaje.includes('bebida') || mensaje.includes('tortilla')
+  ) {
+    twiml.message().media('https://i.imgur.com/eyOZgyH.jpg');
     return res.status(200).send(twiml.toString());
   }
 
-  // Consulta por categoría
+  // Consultas por categoría
   const categorias = {
     tortillas: menuData.tortillas,
     tartas: menuData.tartas,
@@ -86,35 +81,35 @@ export default async function handler(req, res) {
     }
   }
 
-  // Empanadas - cálculo por docena
-  const empanadas = menuData.empanadas.map(e => normalizarTexto(e.name));
-  const pedido = mensaje.split(' ').filter(p => empanadas.some(e => p.includes(e)));
+  // Pedido de empanadas
   if (mensaje.includes('empanada')) {
     const cantidades = mensaje.match(/\d+/g)?.map(n => parseInt(n)) || [];
     const total = cantidades.reduce((a, b) => a + b, 0);
     let respuesta = `Tenemos ${total} empanadas.`;
+
     if (total === 12) {
-      respuesta += `\nPrecio por docena: $20000.`;
+      respuesta += `\n💰 Precio por docena: $20000.`;
     } else {
-      respuesta += `\nPrecio por unidad: $1800 cada una.`;
+      respuesta += `\n💰 Precio por unidad: $1800.`;
     }
-    respuesta += `\n¿Querés agregar algo más al pedido?`;
-    crearBotones(twiml, respuesta, ['Sí', 'No']);
+
+    respuesta += `\n¿Querés agregar algo más?\n📌 Escribí:\n- "Sí"\n- "No"`;
+    twiml.message(respuesta);
     return res.status(200).send(twiml.toString());
   }
 
-  // Carne o cuchillo
+  // Aclaración carne o cuchillo
   if (mensaje.includes('empanada de carne')) {
     twiml.message('¿La empanada de carne la querés de carne picada o de carne a cuchillo?');
     return res.status(200).send(twiml.toString());
   }
 
   if (mensaje.includes('carne picante')) {
-    twiml.message('Ninguna empanada es picante. Todas son suaves, pero sabrosas.');
+    twiml.message('Ninguna empanada es picante. Todas son suaves, sabrosas y sin picante.');
     return res.status(200).send(twiml.toString());
   }
 
-  // Respuesta por producto
+  // Respuesta por producto específico
   for (const categoria in menuData) {
     for (const producto of menuData[categoria]) {
       const nombre = normalizarTexto(producto.name);
@@ -139,13 +134,16 @@ export default async function handler(req, res) {
     }
   }
 
-  // Pedido general
-  if (mensaje.includes('hacer un pedido') || mensaje.includes('quiero pedir') || mensaje.includes('encargar')) {
+  // Frases típicas para comenzar pedido
+  if (
+    mensaje.includes('hacer un pedido') || mensaje.includes('quiero pedir') ||
+    mensaje.includes('encargar') || mensaje.includes('pedir una') || mensaje.includes('tomame')
+  ) {
     twiml.message('Perfecto, decime qué querés pedir y te paso el total.');
     return res.status(200).send(twiml.toString());
   }
 
-  // Respuesta genérica si no reconoce nada
+  // Si no entendió
   twiml.message('Disculpá, no entendí bien. ¿Querés ver el menú o hacer un pedido?');
   return res.status(200).send(twiml.toString());
 }
