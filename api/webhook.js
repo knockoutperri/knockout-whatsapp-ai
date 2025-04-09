@@ -1,13 +1,17 @@
-import twilio from 'twilio';
-const MessagingResponse = twilio.twiml.MessagingResponse;
-
 import menuData from './menuData.js';
+import { format } from 'date-fns';
 import Fuse from 'fuse.js';
 
 const fuseOptions = {
-  keys: ['name'],
+  includeScore: true,
   threshold: 0.4,
+  keys: ['name'],
 };
+
+const fuseIndex = {};
+for (const categoria in menuData) {
+  fuseIndex[categoria] = new Fuse(menuData[categoria], fuseOptions);
+}
 
 function normalizarTexto(texto) {
   return texto
@@ -16,24 +20,6 @@ function normalizarTexto(texto) {
     .replace(/[^\w\s]/gi, '')
     .toLowerCase()
     .trim();
-}
-
-function obtenerSaludo() {
-  const hora = new Date().getHours();
-  if (hora < 13) return 'Buen día';
-  if (hora < 20.5) return 'Buenas tardes';
-  return 'Buenas noches';
-}
-
-function crearBotones(res, texto, botones) {
-  const twiml = new MessagingResponse();
-  const msg = twiml.message();
-  msg.body(texto);
-  const interactive = msg.addChild('Interactive');
-  interactive.addChild('ButtonReply').body(botones[0]).attribute('id', 'opcion_1');
-  interactive.addChild('ButtonReply').body(botones[1]).attribute('id', 'opcion_2');
-  res.set('Content-Type', 'text/xml');
-  return res.status(200).send(twiml.toString());
 }
 
 export default async function handler(req, res) {
@@ -45,144 +31,72 @@ export default async function handler(req, res) {
   const mensajeOriginal = Body || '';
   const mensaje = normalizarTexto(mensajeOriginal);
 
-  // Saludo inicial
-  const saludos = ['hola', 'buenas', 'buen dia', 'buenos dias', 'buenas tardes', 'buenas noches'];
+  const hora = parseInt(format(new Date(), 'HH'), 10);
+  let saludo;
+  if (hora < 13) saludo = '¡Buen día!';
+  else if (hora < 20.5) saludo = '¡Buenas tardes!';
+  else saludo = '¡Buenas noches!';
+
+  const saludos = ['hola', 'buenas', 'buenas tardes', 'buenas noches', 'buen dia', 'buenos dias'];
   if (saludos.some(s => mensaje.includes(s))) {
-    return crearBotones(res, `${obtenerSaludo()} 👋 ¿Querés ver el menú o ya sabés qué pedir?`, [
-      'Ver el menú',
-      'Quiero hacer un pedido',
-    ]);
+    return res.status(200).send(
+      `<Response><Message>${saludo} ¿Querés ver el menú o ya sabés qué pedir?\n\n👉 *Ver menú*\n👉 *Quiero hacer un pedido*</Message></Response>`
+    );
   }
 
   // Mostrar menú con imagen
   if (mensaje.includes('ver menu')) {
-    const twiml = new MessagingResponse();
-    const msg = twiml.message('Te dejo las imágenes del menú 👇');
-    msg.media('https://link-de-tu-imagen-de-pizzas.com/pizzas.jpg');
-    msg.media('https://link-de-tu-imagen-de-varios.com/otros.jpg');
-    msg.body('¿Querés hacer un pedido ahora?');
-    const buttons = msg.addChild('Interactive');
-    buttons.addChild('ButtonReply').body('Sí, quiero hacer un pedido').attribute('id', 'hacer_pedido');
-    buttons.addChild('ButtonReply').body('No por ahora').attribute('id', 'no_pedido');
-    res.set('Content-Type', 'text/xml');
-    return res.status(200).send(twiml.toString());
+    return res.status(200).send(
+      `<Response><Message>Te dejo el menú completo:\nhttps://i.imgur.com/wIN1o4h.jpg\nhttps://i.imgur.com/bjBPbNy.jpg</Message></Response>`
+    );
   }
 
-  // Categorías → si preguntan por ejemplo "tenés tortillas", responder qué hay
-  const categorias = {
-    'tortilla': {
-      lista: menuData.tortillas,
-      respuesta: 'Sí, tenemos estas tortillas:\n',
-    },
-    'tarta': {
-      lista: menuData.tartas,
-      respuesta: 'Sí, tenemos estas tartas:\n',
-    },
-    'pizza rellena': {
-      lista: menuData.pizzasRellenas,
-      respuesta: 'Sí, tenemos estas pizzas rellenas:\n',
-    },
-  };
-
-  for (const [clave, { lista, respuesta }] of Object.entries(categorias)) {
-    if (mensaje.includes(clave)) {
-      const listado = lista.map(p => `• ${p.name} $${p.precio || p.grande}`).join('\n');
-      return res.status(200).send(`<Response><Message>${respuesta}${listado}</Message></Response>`);
-    }
-  }
-
-  // Si pregunta "tenés pizzas" o "tenés milanesas", mandamos imagen
+  // Mostrar imágenes por categoría
   if (mensaje.includes('pizza')) {
-    const twiml = new MessagingResponse();
-    const msg = twiml.message('Sí, tenemos muchas variedades de pizzas 🍕');
-    msg.media('https://link-de-tu-imagen-de-pizzas.com/pizzas.jpg');
-    return res.status(200).send(twiml.toString());
+    return res.status(200).send(`<Response><Message>Acá tenés todas nuestras pizzas:\nhttps://i.imgur.com/bjBPbNy.jpg</Message></Response>`);
   }
-
   if (mensaje.includes('milanesa')) {
-    const twiml = new MessagingResponse();
-    const msg = twiml.message('Sí, tenemos muchas milanesas 🥩');
-    msg.media('https://link-de-tu-imagen-de-varios.com/otros.jpg');
-    return res.status(200).send(twiml.toString());
+    return res.status(200).send(`<Response><Message>Estas son las milanesas que tenemos:\nhttps://i.imgur.com/wIN1o4h.jpg</Message></Response>`);
   }
 
-  // Empanadas – si dicen “carne” sin especificar
-  if (mensaje.includes('empanada de carne') || mensaje.includes('empanada carne')) {
-    return res.status(200).send(
-      `<Response><Message>¿Querés empanada de carne picada o de carne a cuchillo?</Message></Response>`
-    );
+  // Tartas
+  if (mensaje.includes('tarta')) {
+    const tartas = menuData.tartas.map(t => `• ${t.name} $${t.precio}`).join('\n');
+    return res.status(200).send(`<Response><Message>Estas son nuestras tartas:\n${tartas}</Message></Response>`);
   }
 
-  if (mensaje.includes('carne picante')) {
-    return res.status(200).send(
-      `<Response><Message>No tenemos empanadas picantes. Las de carne son suaves y sabrosas 😊</Message></Response>`
-    );
+  // Tortillas
+  if (mensaje.includes('tortilla')) {
+    const tortillas = menuData.tortillas.map(t => `• ${t.name} $${t.precio}`).join('\n');
+    return res.status(200).send(`<Response><Message>Estas son nuestras tortillas:\n${tortillas}</Message></Response>`);
   }
 
-  // Precio de empanadas
-  if (mensaje.includes('cuanto') && mensaje.includes('empanada')) {
-    return res.status(200).send(
-      `<Response><Message>Las empanadas cuestan $1800 c/u. La docena cuesta $20000.</Message></Response>`
-    );
+  // Bebidas
+  if (mensaje.includes('bebida') || mensaje.includes('coca') || mensaje.includes('agua') || mensaje.includes('cerveza')) {
+    const bebidas = menuData.bebidas.map(b => `• ${b.name} $${b.precio}`).join('\n');
+    return res.status(200).send(`<Response><Message>Estas son las bebidas disponibles:\n${bebidas}</Message></Response>`);
   }
 
-  // Demora por producto
-  const demoras = {
-    pizzasComunes: 10,
-    pizzasEspeciales: 10,
-    fainas: 10,
-    calzones: 25,
-    milanesas: 15,
-    tartas: 10,
-    tortillas: 25,
-    empanadas: 10,
-    canastitas: 10,
-    pizzasRellenas: 25,
-  };
+  // Canastitas
+  if (mensaje.includes('canastita')) {
+    const canastitas = menuData.canastitas.map(c => `• ${c.name} $${c.precio}`).join('\n');
+    return res.status(200).send(`<Response><Message>Estas son nuestras canastitas:\n${canastitas}</Message></Response>`);
+  }
 
-  // Buscar el producto con Fuzzy
-  const fuse = new Fuse(
-    Object.values(menuData).flat(),
-    fuseOptions
+  // Calzones
+  if (mensaje.includes('calzon')) {
+    const calzones = menuData.calzones.map(c => `• ${c.name} $${c.precio}`).join('\n');
+    return res.status(200).send(`<Response><Message>Estos son nuestros calzones:\n${calzones}</Message></Response>`);
+  }
+
+  // Fainá
+  if (mensaje.includes('faina')) {
+    const fainas = menuData.fainas.map(f => `• ${f.name} $${f.precio}`).join('\n');
+    return res.status(200).send(`<Response><Message>Tenemos estas opciones:\n${fainas}</Message></Response>`);
+  }
+
+  // Respuesta si no entiende nada
+  return res.status(200).send(
+    `<Response><Message>No te entendí bien 🤔. Podés escribir:\n👉 *Ver menú*\n👉 *Quiero hacer un pedido*\nO preguntarme por ejemplo:\n• ¿Qué milanesas hay?\n• ¿Cuánto sale una tarta?\n• ¿Tienen empanadas?</Message></Response>`
   );
-
-  const resultado = fuse.search(mensaje)[0];
-
-  if (resultado) {
-    const producto = resultado.item;
-    let respuesta = `✅ ${producto.name}:\n`;
-
-    if (producto.chica && producto.grande && producto.gigante) {
-      respuesta += `• Chica: $${producto.chica}\n• Grande: $${producto.grande}\n• Gigante: $${producto.gigante}`;
-    } else if (producto.grande && producto.mediana && producto.chica) {
-      respuesta += `• Chica: $${producto.chica}\n• Mediana: $${producto.mediana}\n• Grande: $${producto.grande}`;
-    } else if (producto.precio) {
-      respuesta += `$${producto.precio}`;
-    } else {
-      respuesta += `Precio: $${producto.grande}`;
-    }
-
-    // Buscar demora según categoría
-    for (const [categoria, minutos] of Object.entries(demoras)) {
-      if (menuData[categoria].some(p => p.name === producto.name)) {
-        respuesta += `\n⏱️ Demora estimada: ${minutos} minutos.`;
-        break;
-      }
-    }
-
-    respuesta += `\n¿Querés agregar algo más al pedido?`;
-
-    const twiml = new MessagingResponse();
-    const msg = twiml.message(respuesta);
-    const buttons = msg.addChild('Interactive');
-    buttons.addChild('ButtonReply').body('Sí').attribute('id', 'agregar_si');
-    buttons.addChild('ButtonReply').body('No').attribute('id', 'agregar_no');
-    res.set('Content-Type', 'text/xml');
-    return res.status(200).send(twiml.toString());
-  }
-
-  // Si no se encontró nada
-  return res
-    .status(200)
-    .send('<Response><Message>No encontré ese producto. ¿Podés escribirlo de otra forma?</Message></Response>');
 }
