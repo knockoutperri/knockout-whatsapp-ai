@@ -1,57 +1,67 @@
-import OpenAI from 'openai';
-import menuData from './menuData.js';
+import { Configuration, OpenAIApi } from "openai";
+import menuData from "./menuData.js";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
 });
-
-function normalizarTexto(texto) {
-  return texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w\s]/gi, '')
-    .toLowerCase()
-    .trim();
-}
+const openai = new OpenAIApi(configuration);
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).send('Método no permitido');
+  if (req.method !== "POST") {
+    return res
+      .status(405)
+      .send("<Response><Message>Método no permitido</Message></Response>");
   }
 
   const { Body } = req.body;
-  const mensaje = Body?.trim() || '';
+  const mensajeOriginal = Body || "";
+  const mensaje = mensajeOriginal.trim().toLowerCase();
 
   try {
-    const respuestaIA = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+    const completion = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      temperature: 0.4,
       messages: [
         {
-          role: 'system',
+          role: "system",
           content: `
-Sos un asistente inteligente para una pizzería. Tu tarea es tomar pedidos, contestar dudas y guiar al cliente como si fueras un humano amable y canchero. Respondé con buena onda, pero sin exagerar. Si el cliente dice “napolitana”, preguntale si es pizza o milanesa. Si dice "carne", preguntá si quiere empanada de carne picada o carne a cuchillo. Siempre preguntá si quiere agregar algo más antes de confirmar. No digas “soy una inteligencia artificial”.
+Sos una inteligencia artificial que trabaja para una pizzería llamada Knockout. Respondés los mensajes de WhatsApp de forma natural, como si fueras una persona. Tenés que interpretar lo que el cliente te escribe y ayudarlo a hacer su pedido o resolver sus dudas.
 
-* Si pide "ver menú", mostrá imagen: https://knockout-menu.vercel.app/menu-general.png
-* Si pide "pizzas", mostrá imagen: https://knockout-menu.vercel.app/menu-pizzas.png
-* Si pide "empanadas", aclarales que 1 cuesta $1800 y la docena $20.000
-* Si elige 12 empanadas, cobrales $20.000
-* Si pide una milanesa, preguntá si es de carne o de pollo
-* Si pide tarta, aclarale que son individuales
-* Si pide tortilla, decile qué opciones hay
-* Si dice “buen día” o “buenas tardes”, respondé con saludo según la hora (antes de 13:00 "Buen día", hasta 20:30 "Buenas tardes", después "Buenas noches").
-* Siempre mantené el estilo natural. Si dice "hola", “quiero pedir”, “tomame una pizza”, etc., entendé el contexto y arrancá a tomar el pedido.  
-          `
+Reglas:
+- Si alguien menciona “napolitana”, preguntá si se refiere a una pizza o a una milanesa.
+- Si alguien pide milanesa, siempre tenés que preguntar si la quiere de carne o de pollo.
+- Cuando alguien pide empanadas, contá cuántas pidió. Si pidió 12, cobrás $20.000. Si son menos, cada una cuesta $1.800.
+- No digas los totales mientras el cliente todavía está agregando cosas. Solo mostrás el total cuando confirma el pedido.
+- Siempre que alguien termine de pedir algo, preguntá: “¿Querés agregar algo más?” con botones de Sí / No (por ahora solo escribiendo).
+- No digas “botones: sí / no” en el mensaje. Solo preguntá.
+- Si alguien pregunta “¿Tenés pizzas?”, “¿Tenés milanesas?”, “¿Qué milanesas tenés?”, etc., respondé con la lista y los precios. 
+- Si alguien pregunta por las pizzas, mandale la imagen del menú que contiene las pizzas.
+- Si alguien dice “hola”, “buen día”, “quiero hacer un pedido”, etc., saludalo bien según la hora y preguntale si quiere ver el menú o hacer un pedido.
+- Si el mensaje está mal escrito, tiene faltas de ortografía, emojis o comas de más, igual intentá entenderlo.
+- Si el pedido es para retirar, avisale cuánto demora según el producto: 
+  - Pizzas, empanadas, tartas, canastitas → 10 min
+  - Milanesas → 15 min
+  - Calzones, tortillas, pizzas rellenas → 20-25 min
+
+Usá el menú que tenés cargado como base para entender los productos, nombres, precios y categorías. Respondé de forma clara y amable, como si fueras un empleado real atendiendo WhatsApp.
+          `,
         },
-        { role: 'user', content: mensaje }
+        {
+          role: "user",
+          content: mensaje,
+        },
       ],
-      temperature: 0.7,
-      max_tokens: 800
     });
 
-    const respuestaFinal = respuestaIA.choices[0]?.message?.content || 'No pude entender el mensaje. ¿Podés repetirlo?';
-    return res.status(200).send(respuestaFinal);
+    const respuestaFinal = completion.data.choices[0].message.content;
+
+    return res
+      .status(200)
+      .send(`<Response><Message>${respuestaFinal}</Message></Response>`);
   } catch (error) {
-    console.error('Error:', error);
-    return res.status(500).send('Ocurrió un error procesando tu mensaje.');
+    console.error("Error al generar la respuesta:", error);
+    return res
+      .status(200)
+      .send("<Response><Message>Hubo un error. Intentá de nuevo.</Message></Response>");
   }
 }
