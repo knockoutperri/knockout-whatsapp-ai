@@ -1,63 +1,118 @@
+// webhook.js
+import { Configuration, OpenAIApi } from 'openai';
 import menuData from './menuData.js';
-import { OpenAI } from 'openai';
+import { readFile } from 'fs/promises';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const openai = new OpenAI({
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const config = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });
+const openai = new OpenAIApi(config);
 
-export default async function handler(req, res) {
-  const twilio = await import('twilio');
-  const MessagingResponse = twilio.default.twiml.MessagingResponse;
+function normalizarTexto(texto) {
+  return texto.toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[.,;:!?¿¡]/g, '')
+    .trim();
+}
 
-  const twiml = new MessagingResponse();
-  const message = req.body.Body || '';
-  const lowerMessage = message.toLowerCase().trim();
+function generarRespuestaSaludo() {
+  const hora = new Date().getHours();
+  if (hora < 13) return '¡Buen día!';
+  if (hora < 20.5) return '¡Buenas tardes!';
+  return '¡Buenas noches!';
+}
 
-  // Saludo inteligente según la hora
-  const now = new Date();
-  const hora = now.getHours();
-  let saludo = '¡Buenas tardes!';
-  if (hora < 13) saludo = '¡Buen día!';
-  else if (hora >= 20) saludo = '¡Buenas noches!';
+function contienePalabra(frase, palabras) {
+  return palabras.some(palabra => frase.includes(palabra));
+}
 
-  // Inicio con botones
-  if (['hola', 'buenas', 'buen día', 'buenas tardes', 'buenas noches'].some(txt => lowerMessage.includes(txt))) {
-    twiml.message(`${saludo} ¿Querés ver el menú o ya sabés qué pedir?\n\n👉 Ver menú\n👉 Quiero hacer un pedido`);
-    return res.status(200).send(twiml.toString());
+function respuestaCategorias(mensaje) {
+  const texto = normalizarTexto(mensaje);
+
+  if (contienePalabra(texto, ['tenes milanesa', 'y milanesa', 'hay milanesa', 'milanesas'])) {
+    return {
+      tipo: 'imagen',
+      url: 'https://knockout-imgs.s3.amazonaws.com/menu-milanesas.png'
+    };
   }
 
-  // Procesamiento con inteligencia artificial real
+  if (contienePalabra(texto, ['tenes pizza', 'hay pizza', 'pizzas'])) {
+    return {
+      tipo: 'imagen',
+      url: 'https://knockout-imgs.s3.amazonaws.com/menu-pizzas.png'
+    };
+  }
+
+  if (texto === 'napolitana') {
+    return {
+      tipo: 'texto',
+      texto: '¿Estás hablando de una pizza napolitana o una milanesa napolitana?'
+    };
+  }
+
+  return null;
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).send('Método no permitido');
+  }
+
+  const promptUsuario = req.body.Body || '';
+  const respuestaCategoria = respuestaCategorias(promptUsuario);
+
+  if (respuestaCategoria) {
+    if (respuestaCategoria.tipo === 'imagen') {
+      return res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?>
+        <Response>
+          <Message>
+            <Body>Te mando la imagen del menú:</Body>
+            <Media>${respuestaCategoria.url}</Media>
+          </Message>
+        </Response>`);
+    }
+    return res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?>
+      <Response>
+        <Message>
+          <Body>${respuestaCategoria.texto}</Body>
+        </Message>
+      </Response>`);
+  }
+
+  const systemPrompt = `Sos un asistente para una pizzería que se llama Knock Out. Respondé siempre como si fueras un humano, de forma natural. Podés interpretar errores ortográficos y frases poco claras. Usá el menú a continuación para dar respuestas.
+
+${JSON.stringify(menuData)}`;
+
   try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const completion = await openai.createChatCompletion({
+      model: 'gpt-3.5-turbo',
       messages: [
-        {
-          role: 'system',
-          content: `Sos un asistente de una pizzería llamada Knock Out. Respondé como un humano, con buena onda, pero sin exagerar. 
-          Usá esta base de datos como referencia para responder precios, aclaraciones, ingredientes y tamaños: ${JSON.stringify(menuData)}.
-          Si alguien pide una empanada de carne, preguntá si la quiere picada o a cuchillo.
-          Si pide 12 empanadas, cobrales $20000 en total. Si pide menos, es $1800 cada una. Nunca aclares esto si no lo preguntan.
-          Siempre que alguien haga un pedido, preguntá: "¿Querés agregar algo más al pedido?" y mostrá botones Sí / No.
-          Si preguntan por pizzas, mandá la imagen del menú de pizzas.
-          Si preguntan por milanesas, tartas, tortillas, empanadas o canastitas, mandá la otra imagen.
-          Respondé de forma flexible ante errores ortográficos, mayúsculas y signos. Usá el mismo estilo que el cliente.
-          Siempre respondé en español.`
-        },
-        {
-          role: 'user',
-          content: message,
-        }
-      ],
-      temperature: 0.6,
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: promptUsuario }
+      ]
     });
 
-    const aiReply = completion.choices[0].message.content;
-    twiml.message(aiReply);
-    return res.status(200).send(twiml.toString());
+    const respuestaIA = completion.data.choices[0].message.content;
 
+    return res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?>
+      <Response>
+        <Message>
+          <Body>${respuestaIA}</Body>
+        </Message>
+      </Response>`);
   } catch (error) {
     console.error('Error con OpenAI:', error);
-    twiml.message('Perdoná, tuve un problema para procesar tu mensaje. ¿Podés repetirlo?');
-    return res.status(200).send(twiml.toString());
+    return res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?>
+      <Response>
+        <Message>
+          <Body>Hubo un problema al procesar tu mensaje. ¿Podés repetirlo?</Body>
+        </Message>
+      </Response>`);
   }
 }
