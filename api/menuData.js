@@ -405,33 +405,21 @@ export const milanesas = [
 ];
 
 export const tartas = [
-  {
-    name: "Tarta de Verdura",
-    precio: 7000,
-  },
-  {
-    name: "Tarta de Jamón y Queso",
-    precio: 8000,
-  },
-  {
-    name: "Tarta de Choclo",
-    precio: 7500,
-  },
+  { name: "Tarta de Verdura", precio: 4300 },
+  { name: "Tarta de Jamón y Queso", precio: 5800 },
+  { name: "Tarta de Zapallito", precio: 4300 },
+  { name: "Tarta de Calabaza", precio: 4300 },
+  { name: "Tarta Combinada", precio: 4300 },
+  { name: "Tarta de Choclo", precio: 4300 },
+  { name: "Tarta Primavera", precio: 6500 },
 ];
 
 export const tortillas = [
-  {
-    name: "Tortilla de Papa",
-    precio: 6500,
-  },
-  {
-    name: "Tortilla Española",
-    precio: 7500,
-  },
-  {
-    name: "Tortilla con Morrón",
-    precio: 7000,
-  },
+  { name: "Tortilla de Papa", precio: 10000 },
+  { name: "Tortilla de Papa, Cebolla y Morrón", precio: 11500 },
+  { name: "Tortilla de Papa, Cebolla, Morrón y Muzzarella", precio: 13000 },
+  { name: "Tortilla de Papa, Jamón y Muzzarella", precio: 14000 },
+  { name: "Tortilla Española", precio: 14000 },
 ];
 
 export const empanadas = [
