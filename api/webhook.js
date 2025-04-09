@@ -1,5 +1,5 @@
-import pkg from 'twilio/lib/twiml/MessagingResponse.js';
-const { MessagingResponse } = pkg;
+import twilio from 'twilio';
+const MessagingResponse = twilio.twiml.MessagingResponse;
 
 import menuData from './menuData.js';
 import Fuse from 'fuse.js';
