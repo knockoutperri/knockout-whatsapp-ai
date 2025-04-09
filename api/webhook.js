@@ -1,64 +1,104 @@
-import OpenAI from 'openai';
+// webhook.js actualizado según indicaciones de Gastón
+
+import { OpenAI } from 'openai';
 import menuData from './menuData.js';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Normaliza texto: saca tildes, mayúsculas, puntuación
+function normalizar(texto) {
+  return texto
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[.,;:!?\-()"']/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+// Categorías sensibles a identificar (para imagen o listado)
+const categorias = {
+  pizzas: ['pizza', 'pizzas'],
+  milanesas: ['milanesa', 'milanesas'],
+  empanadas: ['empanada', 'empanadas'],
+  tartas: ['tarta', 'tartas'],
+  tortillas: ['tortilla', 'tortillas'],
+  calzones: ['calzon', 'calzones'],
+  bebidas: ['bebida', 'bebidas'],
+  faina: ['faina', 'fainá']
+};
+
+// Imagenes por categoría
+const imagenes = {
+  pizzas: 'https://cdn.knockout.ai/img/pizzas-menu.jpg',
+  otras: 'https://cdn.knockout.ai/img/otros-menu.jpg'
+};
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res
-      .status(405)
-      .send('<Response><Message>Método no permitido</Message></Response>');
+    return res.status(405).send('<Response><Message>Método no permitido</Message></Response>');
   }
 
-  const { Body } = req.body;
-  const mensajeOriginal = Body || '';
-  const mensaje = mensajeOriginal.trim().toLowerCase();
+  const mensaje = normalizar(req.body.Body || '');
 
-  try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      temperature: 0.4,
-      messages: [
-        {
-          role: 'system',
-          content: `
-Sos una inteligencia artificial que trabaja para una pizzería llamada Knockout. Respondés los mensajes de WhatsApp como si fueras un empleado real. Interpretás lo que escribe el cliente y lo ayudás a hacer su pedido o resolver sus dudas. Siempre respondé de forma natural y amable.
-
-Reglas:
-- Si mencionan “napolitana”, preguntá si es pizza o milanesa.
-- Si piden milanesa, preguntá si es de carne o pollo.
-- Si piden empanadas, contá cuántas. Si son 12, se cobra $20.000. Si son menos, $1.800 cada una.
-- No muestres el total hasta que el cliente diga que terminó.
-- Después de cada pedido, preguntá: “¿Querés agregar algo más?”
-- Si preguntan por las pizzas, respondé con el menú (imagen) y los nombres con precios.
-- Si preguntan si hay tortillas, milanesas, tartas, etc., respondé lo que hay.
-- Siempre respondé bien aunque el mensaje esté mal escrito.
-- Según el producto, avisá la demora:
-  - Pizzas, empanadas, tartas, canastitas: 10 min
-  - Milanesas: 15 min
-  - Pizzas rellenas, calzones, tortillas: 20 a 25 min
-
-Usá el menú cargado para conocer productos, gustos y precios. No seas robótico. Respondé como si fueras un humano.
-          `,
-        },
-        {
-          role: 'user',
-          content: mensaje,
-        },
-      ],
-    });
-
-    const respuestaFinal = completion.choices[0].message.content;
-
-    return res
-      .status(200)
-      .send(`<Response><Message>${respuestaFinal}</Message></Response>`);
-  } catch (error) {
-    console.error('Error al generar la respuesta:', error);
-    return res
-      .status(200)
-      .send('<Response><Message>Ocurrió un error. Intentá de nuevo.</Message></Response>');
+  // 1. Saludo inicial con horario
+  const hora = new Date().getHours();
+  let saludo = 'Hola';
+  if (hora < 13) saludo = 'Buen día';
+  else if (hora < 20.5) saludo = 'Buenas tardes';
+  else saludo = 'Buenas noches';
+  if (['hola', 'buenas', 'buen dia', 'buenos dias', 'buenas tardes', 'buenas noches'].includes(mensaje)) {
+    return res.status(200).send(`<Response><Message>${saludo}, ¿en qué puedo ayudarte hoy?</Message></Response>`);
   }
+
+  // 2. Detectar ambigüedad "napolitana"
+  if (mensaje.includes('napolitana') && !mensaje.includes('pizza') && !mensaje.includes('milanesa')) {
+    return res.status(200).send('<Response><Message>¿Estás hablando de pizza o de milanesa?</Message></Response>');
+  }
+
+  // 3. Si el cliente dice "milanesa napolitana"
+  if (mensaje.includes('milanesa napolitana')) {
+    const producto = menuData.milanesas.find(p => p.name.toLowerCase().includes('napolitana'));
+    if (producto) {
+      return res.status(200).send(
+        `<Response><Message>Tenemos Milanesa Napolitana:
+• Chica: $${producto.chica}
+• Mediana: $${producto.mediana}
+• Grande: $${producto.grande}
+¿La querés de carne o de pollo?</Message></Response>`
+      );
+    }
+  }
+
+  // 4. Si pregunta por milanesas (sin gusto)
+  if (categorias.milanesas.some(c => mensaje.includes(c))) {
+    return res.status(200).send('<Response><Message>Claro, tenemos milanesas con diferentes gustos. ¿Cuál querés?
+Ej: napolitana, fugazzeta, sola, etc.</Message></Response>');
+  }
+
+  // 5. Si pregunta por pizzas, mandar imagen
+  if (categorias.pizzas.some(c => mensaje.includes(c))) {
+    return res.status(200).send(
+      `<Response><Message><Media>${imagenes.pizzas}</Media></Message></Response>`
+    );
+  }
+
+  // 6. Si pregunta por tartas, tortillas, bebidas u otros
+  if (categorias.tartas.some(c => mensaje.includes(c))) {
+    const lista = menuData.tartas.map(t => `• ${t.name} - $${t.precio}`).join('\n');
+    return res.status(200).send(`<Response><Message>Sí, estas son nuestras tartas:\n${lista}</Message></Response>`);
+  }
+
+  if (categorias.tortillas.some(c => mensaje.includes(c))) {
+    const lista = menuData.tortillas.map(t => `• ${t.name} - $${t.precio}`).join('\n');
+    return res.status(200).send(`<Response><Message>Sí, estas son nuestras tortillas:\n${lista}</Message></Response>`);
+  }
+
+  if (categorias.milanesas.some(c => mensaje.includes(c)) || categorias.empanadas.some(c => mensaje.includes(c)) || categorias.bebidas.some(c => mensaje.includes(c))) {
+    return res.status(200).send(
+      `<Response><Message><Media>${imagenes.otras}</Media></Message></Response>`
+    );
+  }
+
+  // 7. Fallback si no entiende
+  return res.status(200).send('<Response><Message>Disculpá, no entendí bien. Podés escribirme "quiero una muzzarella" o "qué tartas tenés" y te ayudo.</Message></Response>');
 }
