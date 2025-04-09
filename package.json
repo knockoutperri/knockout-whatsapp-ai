@@ -8,6 +8,6 @@
     "start": "node api/webhook.js"
   },
   "dependencies": {
-    "openai": "^4.0.0"
+    "openai": "^4.20.0"
   }
 }
