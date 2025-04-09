@@ -1,102 +1,133 @@
-import menuData from './menuData.js';
-import { format } from 'date-fns';
+import { MessagingResponse } from 'twilio/lib/twiml/MessagingResponse.js';
 import Fuse from 'fuse.js';
+import { parse } from 'url';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
-const fuseOptions = {
-  includeScore: true,
-  threshold: 0.4,
-  keys: ['name'],
+// Datos del menú
+const menuData = {
+  tartas: [
+    { name: "Tarta de Verdura", precio: 7000 },
+    { name: "Tarta de Jamón y Queso", precio: 8000 },
+    { name: "Tarta de Zapallito", precio: 7500 },
+    { name: "Tarta de Calabaza", precio: 7500 },
+    { name: "Tarta Combinada", precio: 8000 },
+    { name: "Tarta de Choclo", precio: 7500 },
+    { name: "Tarta Primavera", precio: 8500 },
+  ],
+  tortillas: [
+    { name: "Tortilla de Papa", precio: 6500 },
+    { name: "Tortilla de Papa, Cebolla y Morrón", precio: 7000 },
+    { name: "Tortilla de Papa, Cebolla, Morrón y Muzarella", precio: 7500 },
+    { name: "Tortilla de Papa, Jamón y Muzarella", precio: 7500 },
+    { name: "Tortilla Española", precio: 7500 },
+  ],
+  empanadas: [
+    { name: "Carne", precio: 1800 },
+    { name: "Pollo", precio: 1800 },
+    { name: "Jamón y Queso", precio: 1800 },
+    { name: "Caprese", precio: 1800 },
+    { name: "Humita", precio: 1800 },
+    { name: "Carne Picante", precio: 1800 },
+  ],
+  canastitas: [
+    { name: "Roquefort y Apio", precio: 2800 },
+    { name: "Caprese", precio: 2800 },
+    { name: "Jamón y Queso", precio: 2800 },
+    { name: "Pollo al Verdeo", precio: 2800 },
+    { name: "Espinaca y Ricota", precio: 2800 },
+  ],
 };
 
-const fuseIndex = {};
-for (const categoria in menuData) {
-  fuseIndex[categoria] = new Fuse(menuData[categoria], fuseOptions);
-}
-
-function normalizarTexto(texto) {
-  return texto
+// Normalizar texto para búsqueda flexible
+const normalize = (text) =>
+  text
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w\s]/gi, '')
+    .replace(/[.,!¡¿?\-]/g, '')
     .toLowerCase()
     .trim();
-}
+
+// Crear botones interactivos
+const crearBotones = () => {
+  const response = new MessagingResponse();
+  const message = response.message();
+  message.body('¿Querés ver el menú o ya sabés qué pedir?');
+  message.action({
+    buttons: [
+      { text: 'Ver menú', action: 'ver_menu' },
+      { text: 'Quiero hacer un pedido', action: 'hacer_pedido' },
+    ],
+  });
+  return response.toString();
+};
+
+// Crear respuesta con imagen
+const crearRespuestaConImagen = (texto, urlImagen) => {
+  const response = new MessagingResponse();
+  const message = response.message();
+  message.body(texto);
+  message.media(urlImagen);
+  return response.toString();
+};
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).send('<Response><Message>Método no permitido</Message></Response>');
   }
 
-  const { Body } = req.body;
-  const mensajeOriginal = Body || '';
-  const mensaje = normalizarTexto(mensajeOriginal);
+  const msg = normalize(req.body.Body || '');
+  const response = new MessagingResponse();
 
-  const hora = parseInt(format(new Date(), 'HH'), 10);
-  let saludo;
-  if (hora < 13) saludo = '¡Buen día!';
-  else if (hora < 20.5) saludo = '¡Buenas tardes!';
-  else saludo = '¡Buenas noches!';
-
+  // Saludos y menú inicial
   const saludos = ['hola', 'buenas', 'buenas tardes', 'buenas noches', 'buen dia', 'buenos dias'];
-  if (saludos.some(s => mensaje.includes(s))) {
-    return res.status(200).send(
-      `<Response><Message>${saludo} ¿Querés ver el menú o ya sabés qué pedir?\n\n👉 *Ver menú*\n👉 *Quiero hacer un pedido*</Message></Response>`
-    );
+  if (saludos.includes(msg)) {
+    return res.status(200).send(crearBotones());
   }
 
-  // Mostrar menú con imagen
-  if (mensaje.includes('ver menu')) {
-    return res.status(200).send(
-      `<Response><Message>Te dejo el menú completo:\nhttps://i.imgur.com/wIN1o4h.jpg\nhttps://i.imgur.com/bjBPbNy.jpg</Message></Response>`
-    );
+  if (msg.includes('ver menu')) {
+    return res.status(200).send(crearRespuestaConImagen('Aquí está nuestro menú completo:', 'https://tu-servidor.com/menu_completo.jpg'));
   }
 
-  // Mostrar imágenes por categoría
-  if (mensaje.includes('pizza')) {
-    return res.status(200).send(`<Response><Message>Acá tenés todas nuestras pizzas:\nhttps://i.imgur.com/bjBPbNy.jpg</Message></Response>`);
-  }
-  if (mensaje.includes('milanesa')) {
-    return res.status(200).send(`<Response><Message>Estas son las milanesas que tenemos:\nhttps://i.imgur.com/wIN1o4h.jpg</Message></Response>`);
+  if (msg.includes('hacer pedido') || msg.includes('quiero pedir')) {
+    response.message('Perfecto, contame qué querés pedir y te confirmo al toque.');
+    return res.status(200).send(response.toString());
   }
 
-  // Tartas
-  if (mensaje.includes('tarta')) {
-    const tartas = menuData.tartas.map(t => `• ${t.name} $${t.precio}`).join('\n');
-    return res.status(200).send(`<Response><Message>Estas son nuestras tartas:\n${tartas}</Message></Response>`);
+  // Respuestas por categoría
+  if (msg.includes('pizza')) {
+    return res.status(200).send(crearRespuestaConImagen('Estas son nuestras pizzas:', 'https://tu-servidor.com/menu_pizzas.jpg'));
   }
 
-  // Tortillas
-  if (mensaje.includes('tortilla')) {
-    const tortillas = menuData.tortillas.map(t => `• ${t.name} $${t.precio}`).join('\n');
-    return res.status(200).send(`<Response><Message>Estas son nuestras tortillas:\n${tortillas}</Message></Response>`);
+  if (msg.includes('milanesa')) {
+    return res.status(200).send(crearRespuestaConImagen('Estas son nuestras milanesas:', 'https://tu-servidor.com/menu_milanesas.jpg'));
   }
 
-  // Bebidas
-  if (mensaje.includes('bebida') || mensaje.includes('coca') || mensaje.includes('agua') || mensaje.includes('cerveza')) {
-    const bebidas = menuData.bebidas.map(b => `• ${b.name} $${b.precio}`).join('\n');
-    return res.status(200).send(`<Response><Message>Estas son las bebidas disponibles:\n${bebidas}</Message></Response>`);
+  if (msg.includes('tarta')) {
+    const tartas = menuData.tartas.map((t) => `${t.name}: $${t.precio}`).join('\n');
+    response.message(`Tenemos estas tartas individuales:\n${tartas}`);
+    return res.status(200).send(response.toString());
   }
 
-  // Canastitas
-  if (mensaje.includes('canastita')) {
-    const canastitas = menuData.canastitas.map(c => `• ${c.name} $${c.precio}`).join('\n');
-    return res.status(200).send(`<Response><Message>Estas son nuestras canastitas:\n${canastitas}</Message></Response>`);
+  if (msg.includes('tortilla')) {
+    const tortillas = menuData.tortillas.map((t) => `${t.name}: $${t.precio}`).join('\n');
+    response.message(`Estas son las tortillas que tenemos:\n${tortillas}`);
+    return res.status(200).send(response.toString());
   }
 
-  // Calzones
-  if (mensaje.includes('calzon')) {
-    const calzones = menuData.calzones.map(c => `• ${c.name} $${c.precio}`).join('\n');
-    return res.status(200).send(`<Response><Message>Estos son nuestros calzones:\n${calzones}</Message></Response>`);
+  if (msg.includes('empanada')) {
+    const empanadas = menuData.empanadas.map((e) => e.name).join(', ');
+    response.message(`Tenemos estas empanadas:\n${empanadas}\nUnidad: $1800\nDocena: $20000`);
+    return res.status(200).send(response.toString());
   }
 
-  // Fainá
-  if (mensaje.includes('faina')) {
-    const fainas = menuData.fainas.map(f => `• ${f.name} $${f.precio}`).join('\n');
-    return res.status(200).send(`<Response><Message>Tenemos estas opciones:\n${fainas}</Message></Response>`);
+  if (msg.includes('canastita')) {
+    const canastitas = menuData.canastitas.map((e) => e.name).join(', ');
+    response.message(`Tenemos estas canastitas:\n${canastitas}\nTodas cuestan $2800`);
+    return res.status(200).send(response.toString());
   }
 
-  // Respuesta si no entiende nada
-  return res.status(200).send(
-    `<Response><Message>No te entendí bien 🤔. Podés escribir:\n👉 *Ver menú*\n👉 *Quiero hacer un pedido*\nO preguntarme por ejemplo:\n• ¿Qué milanesas hay?\n• ¿Cuánto sale una tarta?\n• ¿Tienen empanadas?</Message></Response>`
-  );
+  // Respuesta genérica
+  response.message('No entendí bien. Podés escribirme por ejemplo:\n- ¿Qué milanesas hay?\n- ¿Cuánto está una tarta?\n- ¿Tienen empanadas?\n- Ver menú\n- Quiero hacer un pedido');
+  return res.status(200).send(response.toString());
 }
