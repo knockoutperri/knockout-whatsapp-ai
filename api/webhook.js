@@ -1,70 +1,78 @@
 import { OpenAI } from "openai";
+import menuData from "./menuData.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const historial = {};
+let conversacion = {};
 
 export default async function handler(req, res) {
-  const mensaje = req.body.Body?.toLowerCase() || "";
-  const telefono = req.body.From || "anonimo";
-
-  if (!historial[telefono]) historial[telefono] = [];
-
-  historial[telefono].push(mensaje);
-  if (historial[telefono].length > 10) historial[telefono].shift();
-
-  // Determinar contexto reciente (pizza o milanesa)
-  const contextoReciente = historial[telefono].slice(-3).reverse().find((m) =>
-    m.includes("milanesa") ? "milanesa" : m.includes("pizza") ? "pizza" : null
-  );
-
+  const incomingMsg = req.body.Body?.trim();
+  const from = req.body.From;
   const hora = new Date().getHours();
-  const saludo =
-    hora >= 20
-      ? "Buenas noches"
-      : hora >= 13
-      ? "Buenas tardes"
-      : "Buen día";
 
-  const promptBase = `
-Sos la inteligencia artificial de la pizzería Knockout. Respondé con amabilidad pero sin exagerar, sin repetir "hola" muchas veces ni usar muchos emojis. Contestá de forma natural.
+  if (!conversacion[from]) conversacion[from] = { imagenesEnviadas: false };
 
-Menú:
-- Usá las imágenes PNG reales del menú si preguntan por los precios o quieren ver el menú. No pongas texto tipo "1. pizzas, 2. milanesas...".
-- Si alguien dice "quiero ver el menú", "cuánto están las pizzas", "mostrame los precios", etc., mandale las imágenes del menú.
-- Imagen 1: pizzas, pizzas especiales, rellenas, fainá, calzones.
-- Imagen 2: milanesas, tartas, tortillas, empanadas, canastitas, bebidas.
+  let saludo = "Hola";
+  if (hora < 13) saludo = "Hola, buen día";
+  else if (hora >= 13 && hora < 20) saludo = "Hola, buenas tardes";
+  else saludo = "Hola, buenas noches";
 
-Lógica de nombres iguales:
-- Si alguien dice "napolitana", "fugazzeta", "roquefort", "3 quesos", etc. y no aclara si es pizza o milanesa:
-  - Si el mensaje anterior era sobre milanesa, asumí que sigue con milanesa.
-  - Si era sobre pizza, asumí pizza.
-  - Si no está claro, preguntá: "¿Estamos hablando de pizza o de milanesa?"
+  let respuesta = "";
 
-Milanesas:
-- Siempre preguntá si es de carne o de pollo.
-- Mostrá los precios y los tamaños antes de esa pregunta, para que primero elijan.
-
-Empanadas:
-- Si piden una empanada de carne, preguntá si es carne picada o a cuchillo.
-
-Usá esta estructura al saludar por primera vez:
-${saludo}, ¿en qué puedo ayudarte hoy?
-
-Ahora respondé este mensaje como si fueras la IA:
-"${mensaje}"
-`;
-
-  try {
-    const completion = await openai.chat.completions.create({
-      messages: [{ role: "user", content: promptBase }],
-      model: "gpt-4",
-    });
-
-    const respuesta = completion.choices[0]?.message?.content || "";
-    res.status(200).send(`<Response><Message>${respuesta}</Message></Response>`);
-  } catch (err) {
-    console.error("Error:", err);
-    res.status(500).send(`<Response><Message>Hubo un error. Intentá de nuevo en unos minutos.</Message></Response>`);
+  // SALUDO
+  if (/^hola$/i.test(incomingMsg)) {
+    return res.status(200).send(`<Response><Message>${saludo}, ¿en qué puedo ayudarte hoy?</Message></Response>`);
   }
+
+  // VER EL MENÚ
+  if (/menu|carta|ver los precios|ver opciones/i.test(incomingMsg)) {
+    conversacion[from].imagenesEnviadas = true;
+    return res.status(200).send(`
+      <Response>
+        <Message>¡Claro! Acá te paso las imágenes del menú para que puedas verlo tranquilo.</Message>
+        <Message><Media>https://i.imgur.com/YxDHo49.jpeg</Media></Message>
+        <Message><Media>https://i.imgur.com/bPFMK3o.jpeg</Media></Message>
+      </Response>
+    `);
+  }
+
+  // RESPUESTA SI YA ENVIÓ EL MENÚ ANTES
+  if (!conversacion[from].imagenesEnviadas && /milanesa|pizza|tarta|empanada/i.test(incomingMsg)) {
+    conversacion[from].imagenesEnviadas = true;
+    return res.status(200).send(`
+      <Response>
+        <Message>Te paso el menú así podés ver todas las opciones tranquilamente.</Message>
+        <Message><Media>https://i.imgur.com/YxDHo49.jpeg</Media></Message>
+        <Message><Media>https://i.imgur.com/bPFMK3o.jpeg</Media></Message>
+      </Response>
+    `);
+  }
+
+  // SI PIDE MUZZARELLA
+  if (/muzzarella/i.test(incomingMsg) && /cu[aá]nto|precio|vale/i.test(incomingMsg)) {
+    const producto = menuData.pizzas.find(p => p.nombre.toLowerCase().includes("muzzarella"));
+    if (producto) {
+      return res.status(200).send(`<Response><Message>La Muzzarella grande está $${producto.precios.grande}. Si querés otra medida, también tenemos chica y gigante.</Message></Response>`);
+    }
+  }
+
+  // DETECCIÓN AMBIGUA (NAPO, ROQUEFORT, ETC.)
+  const ambiguos = ["napolitana", "roquefort", "fugazzeta", "primavera", "capresse"];
+  const coincidenciaAmbigua = ambiguos.find(p => incomingMsg.toLowerCase().includes(p));
+
+  if (coincidenciaAmbigua) {
+    return res.status(200).send(`<Response><Message>¿Estás hablando de pizza o de milanesa?</Message></Response>`);
+  }
+
+  // DEFAULT (IA responde lo que pueda)
+  const prompt = `Actuá como el asistente de una pizzería. Respondé de forma amable pero natural. Contestá esto: "${incomingMsg}"`;
+
+  const completion = await openai.chat.completions.create({
+    messages: [{ role: "user", content: prompt }],
+    model: "gpt-3.5-turbo"
+  });
+
+  respuesta = completion.choices[0].message.content;
+
+  return res.status(200).send(`<Response><Message>${respuesta}</Message></Response>`);
 }
