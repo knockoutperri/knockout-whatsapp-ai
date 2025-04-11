@@ -1,135 +1,83 @@
-import { getChatCompletion } from './openaiUtils.js';
-import menuData from './menuData.js';
+// webhook.js
+import { OpenAI } from 'openai';
+import express from 'express';
+import bodyParser from 'body-parser';
+import dotenv from 'dotenv';
+dotenv.config();
 
-// Utilidad para normalizar texto
-function normalizarTexto(texto) {
-  return texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w\s]/gi, '')
-    .toLowerCase()
-    .trim();
+const app = express();
+app.use(bodyParser.json());
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const MENU_IMAGES = [
+  'https://i.imgur.com/YxDHo49.jpeg', // Pizzas
+  'https://i.imgur.com/bPFMK3o.jpeg'  // Milanesas
+];
+
+function getGreeting() {
+  const now = new Date();
+  const hour = now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', hour12: false });
+  const hourNum = parseInt(hour);
+  if (hourNum < 13) return 'buen día';
+  if (hourNum < 20) return 'buenas tardes';
+  return 'buenas noches';
 }
 
-let ultimoProductoAmbiguo = null;
-let seMostroMenu = false;
+const sentMenus = new Map(); // guardamos quién ya recibió el menú por session
 
-function getSaludoPorHora() {
-  const ahora = new Date();
-  const hora = ahora.getHours();
-
-  if (hora < 13) return 'Buen día';
-  if (hora < 20.5) return 'Buenas tardes';
-  return 'Buenas noches';
-}
-
-function esPalabraAmbigua(texto) {
-  const ambiguos = ['napolitana', 'fugazzeta', 'roquefort', '3 quesos', '4 quesos', 'rúcula', 'parmesano'];
-  return ambiguos.includes(normalizarTexto(texto));
-}
-
-function generarRespuestaProducto(nombreProducto, tipo) {
-  const productos = tipo === 'milanesa'
-    ? menuData.milanesas
-    : [...menuData.pizzasComunes, ...menuData.pizzasEspeciales, ...menuData.pizzasRellenas];
-
-  const encontrado = productos.find(p => normalizarTexto(p.name).includes(normalizarTexto(nombreProducto)));
-  if (!encontrado) return null;
-
-  if (tipo === 'milanesa') {
-    return `Perfecto, milanesa ${encontrado.name}. Los precios son:
-• Chica $${encontrado.chica}
-• Mediana $${encontrado.mediana}
-• Grande $${encontrado.grande}`;
-  } else {
-    return `Perfecto, pizza ${encontrado.name}. Los precios son:
-• Chica $${encontrado.chica}
-• Grande $${encontrado.grande}
-• Gigante $${encontrado.gigante}`;
-  }
-}
-
-function contienePalabra(mensaje, lista) {
-  return lista.some(p => mensaje.includes(normalizarTexto(p)));
-}
-
-function generarMensajeMenu() {
-  return 'Te paso una imagen del menú para que puedas verla tranquilo:';
-}
-
-// URL de las imágenes
-const imagenPizzas = 'https://i.imgur.com/YxDHo49.jpeg';
-const imagenMilanesas = 'https://i.imgur.com/bPFMK3o.jpeg';
-
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).send('<Response><Message>Método no permitido</Message></Response>');
-  }
-
-  const { Body, From } = req.body;
-  const mensajeOriginal = Body || '';
-  const mensaje = normalizarTexto(mensajeOriginal);
-  const saludo = getSaludoPorHora();
-
-  // SALUDO INICIAL
-  if (mensaje === 'hola' || mensaje === 'buenas' || mensaje === 'buen dia' || mensaje === 'buenas tardes' || mensaje === 'buenas noches') {
-    seMostroMenu = false;
-    return res.status(200).send(`<Response><Message>Hola, ${saludo}. ¿En qué puedo ayudarte hoy?</Message></Response>`);
-  }
-
-  // MOSTRAR MENÚ SOLO UNA VEZ
-  if (mensaje.includes('ver el menu') || mensaje.includes('menu') || mensaje.includes('ver precios')) {
-    if (!seMostroMenu) {
-      seMostroMenu = true;
-      return res.status(200).send(`
-<Response>
-  <Message>${generarMensajeMenu()}</Message>
-  <Message><Media>${imagenPizzas}</Media></Message>
-  <Message><Media>${imagenMilanesas}</Media></Message>
-</Response>`);
-    } else {
-      return res.status(200).send('<Response><Message>Ya te envié el menú, si querés te lo vuelvo a mandar.</Message></Response>');
-    }
-  }
-
-  // CATEGORÍA MILANESAS
-  if (mensaje.includes('milanesa')) {
-    const lista = menuData.milanesas.map(p => `• ${p.name} (chica $${p.chica}, mediana $${p.mediana}, grande $${p.grande})`).join('\n');
-    return res.status(200).send(`
-<Response>
-  <Message>Estas son las milanesas que tenemos:\n${lista}</Message>
-  <Message><Media>${imagenMilanesas}</Media></Message>
-</Response>`);
-  }
-
-  // PRODUCTO AMBIGUO
-  if (esPalabraAmbigua(mensaje)) {
-    ultimoProductoAmbiguo = mensaje;
-    return res.status(200).send('<Response><Message>¿Estás hablando de pizza o de milanesa?</Message></Response>');
-  }
-
-  // RESPUESTA A PRODUCTO AMBIGUO
-  if (ultimoProductoAmbiguo && (mensaje.includes('pizza') || mensaje.includes('milanesa'))) {
-    const tipo = mensaje.includes('milanesa') ? 'milanesa' : 'pizza';
-    const respuesta = generarRespuestaProducto(ultimoProductoAmbiguo, tipo);
-    ultimoProductoAmbiguo = null;
-
-    if (respuesta) {
-      return res.status(200).send(`<Response><Message>${respuesta}</Message></Response>`);
-    }
-  }
-
-  // INTELIGENCIA ARTIFICIAL (OPENAI)
-  const mensajes = [
-    { role: 'system', content: 'Sos un asistente de una pizzería llamado Knockout Pizzas. Respondé como si fueras parte del negocio, de forma cordial pero natural, y tomá pedidos como si estuvieras atendiendo.' },
-    { role: 'user', content: mensajeOriginal }
-  ];
-
+app.post('/api/webhook', async (req, res) => {
   try {
-    const respuesta = await getChatCompletion(mensajes);
-    return res.status(200).send(`<Response><Message>${respuesta}</Message></Response>`);
-  } catch (error) {
-    console.error('Error al generar respuesta:', error);
-    return res.status(500).send('<Response><Message>Hubo un error procesando tu mensaje. Probá más tarde.</Message></Response>');
+    const msg = req.body.message?.toLowerCase() || '';
+    const sessionId = req.body.sessionId || req.body.phone || 'default';
+    const now = new Date();
+
+    // Saludo inicial
+    if (["hola", "buenas", "buenos dias", "buenas tardes", "buenas noches"].some(p => msg.includes(p))) {
+      const saludo = getGreeting();
+      return res.status(200).send(`<Response><Message>Hola, ${saludo}, ¿en qué puedo ayudarte hoy?</Message></Response>`);
+    }
+
+    // Ver menú
+    if (msg.includes("menu") || msg.includes("ver precios") || msg.includes("ver la carta") || msg.includes("qué tenés")) {
+      if (!sentMenus.get(sessionId)) {
+        sentMenus.set(sessionId, true);
+        return res.status(200).send(`
+          <Response>
+            <Message>Acá te paso las imágenes del menú para que puedas verlo tranquilo:</Message>
+            <Message><Media>${MENU_IMAGES[0]}</Media></Message>
+            <Message><Media>${MENU_IMAGES[1]}</Media></Message>
+          </Response>
+        `.trim());
+      } else {
+        return res.status(200).send(`<Response><Message>¿Querés saber el precio de algo en particular del menú?</Message></Response>`);
+      }
+    }
+
+    // Pregunta por muzzarella
+    if (msg.includes("muzzarella") && !msg.includes("precio") && !msg.includes("cuánto") && !msg.includes("vale")) {
+      return res.status(200).send(`<Response><Message>¿Estás hablando de pizza muzzarella o milanesa muzzarella?</Message></Response>`);
+    }
+
+    if (msg.includes("cuánto") && msg.includes("muzzarella")) {
+      return res.status(200).send(`<Response><Message>La pizza muzzarella grande está $22.800. ¿Querés agregar algo más?</Message></Response>`);
+    }
+
+    // Productos con nombre compartido entre pizza y milanesa
+    const gustosCompartidos = ["napolitana", "fugazzeta", "roquefort", "primavera"];
+    for (const gusto of gustosCompartidos) {
+      if (msg.includes(gusto)) {
+        return res.status(200).send(`<Response><Message>¿Estamos hablando de una pizza ${gusto} o una milanesa ${gusto}?</Message></Response>`);
+      }
+    }
+
+    // Catch all por ahora
+    return res.status(200).send(`<Response><Message>¿Podrías repetirlo de otra forma? Estoy aprendiendo a atender mejor cada día.</Message></Response>`);
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send(`<Response><Message>Error procesando tu mensaje.</Message></Response>`);
   }
-}
+});
+
+export default app;
