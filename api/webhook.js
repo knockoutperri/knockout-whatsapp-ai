@@ -1,43 +1,61 @@
-import menuData from './menuData.js';
 import { OpenAI } from 'openai';
+import { menuData } from './menuData.js'; // Asegúrate de tener este archivo con todos los productos
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, // Configura tu clave de OpenAI aquí
+});
 
+const imagenMenuPizzas = "https://i.imgur.com/YxDHo49.jpeg";
+const imagenMenuMilanesas = "https://i.imgur.com/bPFMK3o.jpeg";
+
+// Aquí va la función que maneja las peticiones de WhatsApp
 export default async function handler(req, res) {
-  const incomingMsg = req.body.Body?.toLowerCase().trim();
+  const incomingMsg = req.body.Body?.toLowerCase() || ''; // Obtenemos el mensaje entrante
+  let reply = ''; // Variable para la respuesta que vamos a enviar
 
-  const ahora = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
+  // Saludo con hora local Argentina
+  const ahora = new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" });
   const hora = new Date(ahora).getHours();
-  let saludo = "Hola, buen día";
-  if (hora >= 13 && hora < 20) saludo = "Hola, buenas tardes";
-  else if (hora >= 20 || hora < 5) saludo = "Hola, buenas noches";
+  let saludo = '';
+  
+  if (hora < 12) {
+    saludo = "¡Hola, buen día!";
+  } else if (hora < 20) {
+    saludo = "¡Hola, buenas tardes!";
+  } else {
+    saludo = "¡Hola, buenas noches!";
+  }
 
-  const promptIA = `
-    Sos la inteligencia artificial de la pizzería Knockout. Atendé a los clientes de manera natural, amigable y efectiva.  
-    Reglas estrictas que debés cumplir siempre:
-    - Nunca repitas "hola" si ya lo dijiste antes.
-    - Saluda diciendo "${saludo}" según el horario actual de Argentina.
-    - Si el cliente pide ver el menú, respondé solo con: "Claro, acá te dejo nuestro menú" y enviá las imágenes directamente desde Twilio.
-    - Si el cliente quiere hacer un pedido o pregunta por precios específicos, asumí que pide pizza grande salvo que indique otro tamaño.
-    - Si hay nombres compartidos entre pizzas y milanesas (como napolitana, roquefort, fugazzeta, etc.) preguntá claramente "¿Te referís a pizza o milanesa?".
-    - Recordá que las milanesas pueden ser de carne o pollo. Siempre preguntá si no está aclarado.
-    - Sé breve y claro, sin mensajes largos innecesarios. No inventes ingredientes ni promociones que no existan.
+  // Respuesta según el mensaje recibido
+  if (incomingMsg.includes('hola')) {
+    reply = `${saludo} ¿En qué puedo ayudarte hoy?`;
+  } else if (incomingMsg.includes('ver el menu') || incomingMsg.includes('menú') || incomingMsg.includes('ver menú')) {
+    reply = `${saludo} Claro, acá te dejo nuestro menú. Un momento que te envío las imágenes directamente desde Twilio.`;
 
-    El menú tiene pizzas, milanesas, empanadas, tartas, tortillas, canastitas, calzones, fainá y bebidas.
-  `;
+    // Aquí se envían las imágenes de los menús directamente en el chat de WhatsApp
+    res.status(200).send(`
+      <Response>
+        <Message>
+          <Body>${reply}</Body>
+          <Media>${imagenMenuPizzas}</Media>
+          <Media>${imagenMenuMilanesas}</Media>
+        </Message>
+      </Response>
+    `);
+    return; // Terminamos la respuesta aquí, ya que estamos enviando las imágenes.
+  } else if (incomingMsg.includes('precio') || incomingMsg.includes('cuánto cuesta')) {
+    reply = "¡Claro! ¿De qué producto te gustaría saber el precio?";
+  } else {
+    // Si el mensaje no es reconocido, se devuelve un mensaje genérico
+    reply = `${saludo} Perdoná, no entendí bien. ¿Querés ver el menú o saber el precio de algo?`;
+  }
 
-  const completion = await openai.chat.completions.create({
-    messages: [{ role: "user", content: `${promptIA}\nCliente dice: ${incomingMsg}` }],
-    model: "gpt-3.5-turbo",
-  });
-
-  const reply = completion.choices[0].message.content;
-
-  const twiml = `
-  <Response>
-    <Message>${reply}</Message>
-  </Response>
-  `;
-
-  res.status(200).send(twiml);
+  // Si el mensaje es general y no hay imágenes, respondemos solo con texto
+  res.status(200).send(`
+    <Response>
+      <Message>
+        <Body>${reply}</Body>
+      </Message>
+    </Response>
+  `);
 }
