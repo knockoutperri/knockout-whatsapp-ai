@@ -1,5 +1,5 @@
 // webhook.js
-import { menuData } from './menuData.js';
+import menuData from './menuData.js';
 import { OpenAI } from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
