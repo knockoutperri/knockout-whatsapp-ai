@@ -1,5 +1,5 @@
 import { OpenAI } from 'openai';
-import { menuData } from './menuData.js'; // Asegúrate de tener este archivo con todos los productos
+import menuData from './menuData.js'; // Asegúrate de tener este archivo con todos los productos
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY, // Configura tu clave de OpenAI aquí
