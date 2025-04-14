@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import twilio from 'twilio';
-import menuData from '../menuData.js'; // Asegurate que esté bien escrito con la mayúscula si así lo tenés
+import menuData from './menuData.js'; // Asegurate que esté bien escrito con la mayúscula si así lo tenés
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
