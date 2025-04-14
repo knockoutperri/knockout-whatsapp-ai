@@ -1,60 +1,75 @@
 import { OpenAI } from 'openai';
-import menuData from './menuData.js'; // Asegúrate de tener este archivo con todos los productos
+import twilio from 'twilio';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // Configura tu clave de OpenAI aquí
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-const imagenMenuPizzas = "https://i.imgur.com/YxDHo49.jpeg";
-const imagenMenuMilanesas = "https://i.imgur.com/bPFMK3o.jpeg";
+const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-// Aquí va la función que maneja las peticiones de WhatsApp
+const promptBase = `
+Sos una inteligencia artificial que atiende pedidos para Knockout Pizzas. Atendés como una persona real: con buena onda, pero sin exagerar. No repetís "hola" en cada mensaje. Usás buen criterio. Algunas reglas que tenés que seguir:
+
+1. Si dicen "hola", respondé con "Hola, buen día"/"buenas tardes"/"buenas noches" según la hora en Argentina (UTC-3), y agregá: "¿En qué puedo ayudarte hoy?"
+2. Si piden ver el menú, enviá las imágenes de los menús usando los templates de Twilio.
+3. Si preguntan por un producto que existe tanto en pizza como en milanesa (como Napolitana o Roquefort), preguntá: "¿Estás hablando de pizza o de milanesa?"
+4. Si te dicen milanesa, mostrales los gustos y precios, y después preguntales si la quieren de carne o pollo.
+5. Asumí que si no aclaran tamaño de pizza, es grande. pero si te preguntan los tamaños aclara que tenemos la chica (4 porciones), la mediana (8 porciones) y la gigante (12 porciones)
+6. Si piden precios, respondé solo el producto pedido (no todo el menú).
+7. No uses emojis a menos que el cliente los use.
+8. Sé claro, directo, no digas "claro que sí" o "excelente elección" como un vendedor exagerado.
+
+Contestá siempre con una respuesta natural. Si no entendés, pedí que lo repita, pero no digas "no entendí tu mensaje".
+`;
+
 export default async function handler(req, res) {
-  const incomingMsg = req.body.Body?.toLowerCase() || ''; // Obtenemos el mensaje entrante
-  let reply = ''; // Variable para la respuesta que vamos a enviar
+  const incomingMsg = req.body.Body?.trim() || '';
+  const from = req.body.From;
+  const to = req.body.To;
 
-  // Saludo con hora local Argentina
-  const ahora = new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" });
-  const hora = new Date(ahora).getHours();
-  let saludo = '';
-  
-  if (hora < 12) {
-    saludo = "¡Hola, buen día!";
-  } else if (hora < 20) {
-    saludo = "¡Hola, buenas tardes!";
-  } else {
-    saludo = "¡Hola, buenas noches!";
+  // Definimos hora actual en Argentina (UTC-3)
+  const ahora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
+  const hora = ahora.getHours();
+
+  let saludo = "";
+  if (hora < 13) saludo = "buen día";
+  else if (hora < 20) saludo = "buenas tardes";
+  else saludo = "buenas noches";
+
+  // Si piden ver el menú o algo similar
+  const msgLower = incomingMsg.toLowerCase();
+  if (msgLower.includes("ver el menú") || msgLower.includes("ver menu") || msgLower.includes("quiero el menú") || msgLower.includes("pasame el menú") || msgLower.includes("menu")) {
+    // Enviamos las dos imágenes por templates desde Twilio
+    await twilioClient.messages.create({
+      from,
+      to,
+      contentSid: 'menu_pizzas'
+    });
+    await twilioClient.messages.create({
+      from,
+      to,
+      contentSid: 'menu_milanesas'
+    });
+
+    res.status(200).send('<Response><Message><Body>Te paso nuestro menú. Cualquier duda, escribinos.</Body></Message></Response>');
+    return;
   }
 
-  // Respuesta según el mensaje recibido
-  if (incomingMsg.includes('hola')) {
-    reply = `${saludo} ¿En qué puedo ayudarte hoy?`;
-  } else if (incomingMsg.includes('ver el menu') || incomingMsg.includes('menú') || incomingMsg.includes('ver menú')) {
-    reply = `${saludo} Claro, acá te dejo nuestro menú. Un momento que te envío las imágenes directamente desde Twilio.`;
+  // Armamos el mensaje a enviar a la IA
+  const completion = await openai.chat.completions.create({
+    messages: [
+      { role: "system", content: promptBase },
+      { role: "user", content: incomingMsg }
+    ],
+    model: "gpt-4",
+  });
 
-    // Aquí se envían las imágenes de los menús directamente en el chat de WhatsApp
-    res.status(200).send(`
-      <Response>
-        <Message>
-          <Body>${reply}</Body>
-          <Media>${imagenMenuPizzas}</Media>
-          <Media>${imagenMenuMilanesas}</Media>
-        </Message>
-      </Response>
-    `);
-    return; // Terminamos la respuesta aquí, ya que estamos enviando las imágenes.
-  } else if (incomingMsg.includes('precio') || incomingMsg.includes('cuánto cuesta')) {
-    reply = "¡Claro! ¿De qué producto te gustaría saber el precio?";
-  } else {
-    // Si el mensaje no es reconocido, se devuelve un mensaje genérico
-    reply = `${saludo} Perdoná, no entendí bien. ¿Querés ver el menú o saber el precio de algo?`;
-  }
+  const respuestaIA = completion.choices[0]?.message?.content || 'Disculpá, no entendí. ¿Podés repetirlo?';
 
-  // Si el mensaje es general y no hay imágenes, respondemos solo con texto
   res.status(200).send(`
     <Response>
       <Message>
-        <Body>${reply}</Body>
+        <Body>${respuestaIA}</Body>
       </Message>
     </Response>
   `);
