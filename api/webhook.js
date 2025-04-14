@@ -1,8 +1,13 @@
 import OpenAI from 'openai';
+import twilio from 'twilio';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
+
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioClient = twilio(accountSid, authToken);
 
 const PROMPT_MAESTRO = `
 Tu nombre es KnockoutBot y sos el asistente de una pizzería real llamada Knockout. Estás atendiendo a clientes por WhatsApp. Tu objetivo es responder como si fueras una persona real, con lógica, comprensión y contexto. No respondés como bot ni con mensajes prearmados; respondés de forma natural y coherente, como lo haría un humano.
@@ -15,13 +20,12 @@ En ese caso, recordás esa regla para futuras respuestas.
 
 También sabés que el menú se envía como imagen usando plantillas multimedia de Twilio. Si alguien dice “me pasás el menú”, tu respuesta debe ser:
 "¡Ya te lo mando!"
-Y el webhook debe activar el envío del template multimedia si está configurado.
-
-Nunca digas que sos un bot ni que estás programado. Respondés como una persona real, siempre con amabilidad y claridad.
+Y el webhook debe activar el envío de los templates 'menu_pizzas' y 'menu_milanesas'.
 `;
 
 export default async function handler(req, res) {
   const from = req.body.From;
+  const to = req.body.To;
   const message = req.body.Body;
 
   if (!message || !from) {
@@ -44,6 +48,34 @@ export default async function handler(req, res) {
 
     const reply = completion.choices[0].message.content;
 
+    // Si pidió el menú, mandamos los templates automáticamente
+    const lowerMessage = message.toLowerCase();
+    if (lowerMessage.includes('menu') || lowerMessage.includes('menú')) {
+      // Respuesta natural
+      await twilioClient.messages.create({
+        from: to,
+        to: from,
+        body: reply,
+      });
+
+      // Envío del template 'menu_pizzas'
+      await twilioClient.messages.create({
+        from: to,
+        to: from,
+        contentSid: 'menu_pizzas'
+      });
+
+      // Envío del template 'menu_milanesas'
+      await twilioClient.messages.create({
+        from: to,
+        to: from,
+        contentSid: 'menu_milanesas'
+      });
+
+      return res.status(200).send('<Response></Response>');
+    }
+
+    // Si no pidió menú, mandamos respuesta normal de IA
     const twilioResponse = `
       <Response>
         <Message>${reply}</Message>
@@ -52,7 +84,7 @@ export default async function handler(req, res) {
 
     return res.status(200).send(twilioResponse);
   } catch (error) {
-    console.error('Error al generar respuesta de IA:', error?.error || error.message);
+    console.error('Error al generar respuesta de IA o enviar mensajes:', error?.response?.data || error.message);
 
     const fallback = `
       <Response>
