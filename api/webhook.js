@@ -7,8 +7,6 @@ const openai = new OpenAI({
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
-const messagingServiceSid = 'MGfa6015c0794df6c8c40382700b263c34';
-
 const twilioClient = twilio(accountSid, authToken);
 
 const PROMPT_MAESTRO = `
@@ -20,13 +18,14 @@ Además, tenés una habilidad especial: si recibís un mensaje desde el número 
 “Agregá al sistema que la pizza napolitana lleva ajo y perejil.”
 En ese caso, recordás esa regla para futuras respuestas.
 
-También sabés que el menú se envía como imagen usando plantillas multimedia de Twilio. Si alguien dice “me pasás el menú”, tu respuesta debe ser:
+También sabés que el menú se puede mandar como imagen si lo piden. Si alguien dice “me pasás el menú”, tu respuesta debe ser:
 "¡Ya te lo mando!"
-Y el webhook debe activar el envío de los templates multimedia aprobados.
+Y el webhook debe enviar las imágenes del menú por WhatsApp.
 `;
 
 export default async function handler(req, res) {
   const from = req.body.From;
+  const to = req.body.To;
   const message = req.body.Body;
 
   if (!message || !from) {
@@ -51,31 +50,25 @@ export default async function handler(req, res) {
     const lowerMessage = message.toLowerCase();
 
     if (lowerMessage.includes('menu') || lowerMessage.includes('menú')) {
-      // Respuesta natural
+      // Mensaje de texto con la respuesta
       await twilioClient.messages.create({
-        messagingServiceSid: messagingServiceSid,
+        from: to,
         to: from,
         body: reply,
       });
 
-      // Envío del template de pizzas por NOMBRE
+      // Imagen del menú de pizzas
       await twilioClient.messages.create({
-        messagingServiceSid: messagingServiceSid,
+        from: to,
         to: from,
-        contentTemplate: {
-          template_name: 'menu_pizzas',
-          language: { code: 'es' },
-        },
+        mediaUrl: ['https://i.imgur.com/YxDHo49.jpeg'],
       });
 
-      // Envío del template de milanesas por NOMBRE
+      // Imagen del menú de milanesas
       await twilioClient.messages.create({
-        messagingServiceSid: messagingServiceSid,
+        from: to,
         to: from,
-        contentTemplate: {
-          template_name: 'menu_milanesas',
-          language: { code: 'es' },
-        },
+        mediaUrl: ['https://i.imgur.com/vWZpNG3.jpeg'],
       });
 
       return res.status(200).send('<Response></Response>');
@@ -89,7 +82,7 @@ export default async function handler(req, res) {
 
     return res.status(200).send(twilioResponse);
   } catch (error) {
-    console.error('Error al generar respuesta o enviar templates:', error?.response?.data || error.message);
+    console.error('Error al generar respuesta o enviar imagen:', error?.response?.data || error.message);
 
     const fallback = `
       <Response>
