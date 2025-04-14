@@ -1,76 +1,63 @@
-import { OpenAI } from 'openai';
-import twilio from 'twilio';
+import { Configuration, OpenAIApi } from 'openai';
+import { xml2js } from 'xml-js';
 
-const openai = new OpenAI({
+const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });
+const openai = new OpenAIApi(configuration);
 
-const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+const PROMPT_MAESTRO = `
+Tu nombre es KnockoutBot y sos el asistente de una pizzería real llamada Knockout. Estás atendiendo a clientes por WhatsApp. Tu objetivo es responder como si fueras una persona real, con lógica, comprensión y contexto. No respondés como bot. No usás mensajes prearmados. Respondés naturalmente como ChatGPT.
 
-const promptBase = `
-Sos una inteligencia artificial que atiende pedidos para Knockout Pizzas. Atendés como una persona real: con buena onda, pero sin exagerar. No repetís "hola" en cada mensaje. Usás buen criterio. Algunas reglas que tenés que seguir:
+Siempre interpretás el mensaje del cliente, incluso si está mal escrito o es confuso. Tenés tolerancia a errores, sin responder "no entiendo". Tu objetivo es ayudar, sugerir, confirmar pedidos, explicar cosas si te preguntan, y saludar según la hora **de Argentina** (GMT-3).
 
-1. Si dicen "hola", respondé con "Hola, buen día"/"buenas tardes"/"buenas noches" según la hora en Argentina (UTC-3), y agregá: "¿En qué puedo ayudarte hoy?"
-2. Si piden ver el menú, enviá las imágenes de los menús usando los templates de Twilio.
-3. Si preguntan por un producto que existe tanto en pizza como en milanesa (como Napolitana o Roquefort), preguntá: "¿Estás hablando de pizza o de milanesa?"
-4. Si te dicen milanesa, mostrales los gustos y precios, y después preguntales si la quieren de carne o pollo.
-5. Asumí que si no aclaran tamaño de pizza, es grande. pero si te preguntan los tamaños aclara que tenemos la chica (4 porciones), la mediana (8 porciones) y la gigante (12 porciones)
-6. Si piden precios, respondé solo el producto pedido (no todo el menú).
-7. No uses emojis a menos que el cliente los use.
-8. Sé claro, directo, no digas "claro que sí" o "excelente elección" como un vendedor exagerado.
+Además, tenés una habilidad especial: si recibís un mensaje desde el número autorizado del dueño (Gastón), como por ejemplo:  
+“Agregá al sistema que la pizza napolitana lleva ajo y perejil”,  
+automáticamente actualizás tu conocimiento con esa regla para futuras respuestas.
 
-Contestá siempre con una respuesta natural. Si no entendés, pedí que lo repita, pero no digas "no entendí tu mensaje".
+También sabés que el menú se envía como imagen usando plantillas multimedia de Twilio. Si alguien dice “me pasás el menú”, tu respuesta debe ser:
+
+"¡Ya te lo mando!" (y el webhook debe activar el template multimedia, si está configurado).
+
+Nunca decís “soy una IA” ni “soy un bot”. Sos un humano respondiendo naturalmente, como en esta conversación.
 `;
 
 export default async function handler(req, res) {
-  const incomingMsg = req.body.Body?.trim() || '';
   const from = req.body.From;
-  const to = req.body.To;
+  const message = req.body.Body;
 
-  // Definimos hora actual en Argentina (UTC-3)
-  const ahora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
-  const hora = ahora.getHours();
-
-  let saludo = "";
-  if (hora < 13) saludo = "buen día";
-  else if (hora < 20) saludo = "buenas tardes";
-  else saludo = "buenas noches";
-
-  // Si piden ver el menú o algo similar
-  const msgLower = incomingMsg.toLowerCase();
-  if (msgLower.includes("ver el menú") || msgLower.includes("ver menu") || msgLower.includes("quiero el menú") || msgLower.includes("pasame el menú") || msgLower.includes("menu")) {
-    // Enviamos las dos imágenes por templates desde Twilio
-    await twilioClient.messages.create({
-      from,
-      to,
-      contentSid: 'menu_pizzas'
-    });
-    await twilioClient.messages.create({
-      from,
-      to,
-      contentSid: 'menu_milanesas'
-    });
-
-    res.status(200).send('<Response><Message><Body>Te paso nuestro menú. Cualquier duda, escribinos.</Body></Message></Response>');
-    return;
+  // Evitar procesar mensajes vacíos o no de texto
+  if (!message || !from) {
+    return res.status(200).send('<Response></Response>');
   }
 
-  // Armamos el mensaje a enviar a la IA
-  const completion = await openai.chat.completions.create({
-    messages: [
-      { role: "system", content: promptBase },
-      { role: "user", content: incomingMsg }
-    ],
-    model: "gpt-4",
-  });
+  try {
+    const completion = await openai.createChatCompletion({
+      model: 'gpt-4',
+      messages: [
+        { role: 'system', content: PROMPT_MAESTRO },
+        { role: 'user', content: message }
+      ],
+      temperature: 0.7,
+    });
 
-  const respuestaIA = completion.choices[0]?.message?.content || 'Disculpá, no entendí. ¿Podés repetirlo?';
+    const reply = completion.data.choices[0].message.content;
 
-  res.status(200).send(`
-    <Response>
-      <Message>
-        <Body>${respuestaIA}</Body>
-      </Message>
-    </Response>
-  `);
+    const twilioResponse = `
+      <Response>
+        <Message>${reply}</Message>
+      </Response>
+    `;
+
+    return res.status(200).send(twilioResponse);
+  } catch (error) {
+    console.error('Error al generar respuesta de IA:', error?.response?.data || error.message);
+
+    const fallback = `
+      <Response>
+        <Message>Ups, hubo un error al procesar tu mensaje. Por favor, intentá más tarde.</Message>
+      </Response>
+    `;
+    return res.status(200).send(fallback);
+  }
 }
