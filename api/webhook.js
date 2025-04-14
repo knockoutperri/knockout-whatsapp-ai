@@ -1,9 +1,8 @@
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
-const openai = new OpenAIApi(configuration);
 
 const PROMPT_MAESTRO = `
 Tu nombre es KnockoutBot y sos el asistente de una pizzería real llamada Knockout. Estás atendiendo a clientes por WhatsApp. Tu objetivo es responder como si fueras una persona real, con lógica, comprensión y contexto. No respondés como bot ni con mensajes prearmados; respondés de forma natural y coherente, como lo haría un humano.
@@ -37,13 +36,13 @@ export default async function handler(req, res) {
   ];
 
   try {
-    const completion = await openai.createChatCompletion({
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: messages,
       temperature: 0.7,
     });
 
-    const reply = completion.data.choices[0].message.content;
+    const reply = completion.choices[0].message.content;
 
     const twilioResponse = `
       <Response>
@@ -53,7 +52,7 @@ export default async function handler(req, res) {
 
     return res.status(200).send(twilioResponse);
   } catch (error) {
-    console.error('Error al generar respuesta de IA:', error?.response?.data || error.message);
+    console.error('Error al generar respuesta de IA:', error?.error || error.message);
 
     const fallback = `
       <Response>
