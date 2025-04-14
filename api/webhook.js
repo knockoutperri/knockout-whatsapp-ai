@@ -7,6 +7,8 @@ const openai = new OpenAI({
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
+const messagingServiceSid = 'MGfa6015c0794df6c8c40382700b263c34';
+
 const twilioClient = twilio(accountSid, authToken);
 
 const PROMPT_MAESTRO = `
@@ -20,12 +22,11 @@ En ese caso, recordás esa regla para futuras respuestas.
 
 También sabés que el menú se envía como imagen usando plantillas multimedia de Twilio. Si alguien dice “me pasás el menú”, tu respuesta debe ser:
 "¡Ya te lo mando!"
-Y el webhook debe activar el envío de los templates con imágenes.
+Y el webhook debe activar el envío de los templates multimedia aprobados.
 `;
 
 export default async function handler(req, res) {
   const from = req.body.From;
-  const to = req.body.To;
   const message = req.body.Body;
 
   if (!message || !from) {
@@ -47,27 +48,26 @@ export default async function handler(req, res) {
     });
 
     const reply = completion.choices[0].message.content;
-
     const lowerMessage = message.toLowerCase();
 
     if (lowerMessage.includes('menu') || lowerMessage.includes('menú')) {
-      // Responde primero con texto
+      // Respuesta de la IA
       await twilioClient.messages.create({
-        from: to,
+        messagingServiceSid: messagingServiceSid,
         to: from,
         body: reply,
       });
 
-      // Envío del template: menú de pizzas
+      // Envío del template de pizzas
       await twilioClient.messages.create({
-        from: to,
+        messagingServiceSid: messagingServiceSid,
         to: from,
         contentSid: 'HX53c6fdb61c603fc6cbfdad3368625783',
       });
 
-      // Envío del template: menú de milanesas
+      // Envío del template de milanesas
       await twilioClient.messages.create({
-        from: to,
+        messagingServiceSid: messagingServiceSid,
         to: from,
         contentSid: 'HXbf582f05e1df7e30aa52eb286c9f006a',
       });
@@ -83,7 +83,7 @@ export default async function handler(req, res) {
 
     return res.status(200).send(twilioResponse);
   } catch (error) {
-    console.error('Error al generar respuesta de IA o enviar mensajes:', error?.response?.data || error.message);
+    console.error('Error al generar respuesta o enviar templates:', error?.response?.data || error.message);
 
     const fallback = `
       <Response>
