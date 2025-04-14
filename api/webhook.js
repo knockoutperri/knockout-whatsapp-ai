@@ -20,7 +20,7 @@ En ese caso, recordás esa regla para futuras respuestas.
 
 También sabés que el menú se envía como imagen usando plantillas multimedia de Twilio. Si alguien dice “me pasás el menú”, tu respuesta debe ser:
 "¡Ya te lo mando!"
-Y el webhook debe activar el envío de los templates 'menu_pizzas' y 'menu_milanesas'.
+Y el webhook debe activar el envío de los templates con imágenes.
 `;
 
 export default async function handler(req, res) {
@@ -48,34 +48,33 @@ export default async function handler(req, res) {
 
     const reply = completion.choices[0].message.content;
 
-    // Si pidió el menú, mandamos los templates automáticamente
     const lowerMessage = message.toLowerCase();
+
     if (lowerMessage.includes('menu') || lowerMessage.includes('menú')) {
-      // Respuesta natural
+      // Responde primero con texto
       await twilioClient.messages.create({
         from: to,
         to: from,
         body: reply,
       });
 
-      // Envío del template 'menu_pizzas'
+      // Envío del template: menú de pizzas
       await twilioClient.messages.create({
         from: to,
         to: from,
-        contentSid: 'menu_pizzas'
+        contentSid: 'HX53c6fdb61c603fc6cbfdad3368625783',
       });
 
-      // Envío del template 'menu_milanesas'
+      // Envío del template: menú de milanesas
       await twilioClient.messages.create({
         from: to,
         to: from,
-        contentSid: 'menu_milanesas'
+        contentSid: 'HXbf582f05e1df7e30aa52eb286c9f006a',
       });
 
       return res.status(200).send('<Response></Response>');
     }
 
-    // Si no pidió menú, mandamos respuesta normal de IA
     const twilioResponse = `
       <Response>
         <Message>${reply}</Message>
