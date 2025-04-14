@@ -51,25 +51,31 @@ export default async function handler(req, res) {
     const lowerMessage = message.toLowerCase();
 
     if (lowerMessage.includes('menu') || lowerMessage.includes('menú')) {
-      // Respuesta de la IA
+      // Respuesta natural
       await twilioClient.messages.create({
         messagingServiceSid: messagingServiceSid,
         to: from,
         body: reply,
       });
 
-      // Envío del template de pizzas
+      // Envío del template de pizzas por NOMBRE
       await twilioClient.messages.create({
         messagingServiceSid: messagingServiceSid,
         to: from,
-        contentSid: 'HX53c6fdb61c603fc6cbfdad3368625783',
+        contentTemplate: {
+          template_name: 'menu_pizzas',
+          language: { code: 'es' },
+        },
       });
 
-      // Envío del template de milanesas
+      // Envío del template de milanesas por NOMBRE
       await twilioClient.messages.create({
         messagingServiceSid: messagingServiceSid,
         to: from,
-        contentSid: 'HXbf582f05e1df7e30aa52eb286c9f006a',
+        contentTemplate: {
+          template_name: 'menu_milanesas',
+          language: { code: 'es' },
+        },
       });
 
       return res.status(200).send('<Response></Response>');
