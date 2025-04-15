@@ -279,6 +279,28 @@ export default async function handler(req, res) {
   const saludo = saludoPorHoraArgentina();
   const historial = memoriaPorCliente.get(from) || [];
 
+  if (
+  mensaje.toLowerCase().includes('ver el menú') ||
+  mensaje.toLowerCase().includes('ver la carta') ||
+  mensaje.toLowerCase().includes('ver los precios') ||
+  mensaje.toLowerCase().includes('quiero ver el menú') ||
+  mensaje.toLowerCase().includes('quiero ver la carta') ||
+  mensaje.toLowerCase().includes('quiero ver los precios')
+) {
+  const twilioResponse = `
+    <Response>
+      <Message>
+        <Media>https://i.imgur.com/YxDHo49.jpeg</Media>
+      </Message>
+      <Message>
+        <Media>https://i.imgur.com/vWZpNG3.jpeg</Media>
+      </Message>
+    </Response>
+  `;
+  return res.status(200).send(twilioResponse);
+}
+
+
   historial.push({ role: 'user', content: mensaje });
 
 const mensajes = [
