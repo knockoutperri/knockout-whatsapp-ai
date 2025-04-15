@@ -48,7 +48,7 @@ Reglas especiales:
 7. No respondas como robot. Respondé como una persona del local.
 8. Si el número que escribe es el del dueño, interpretalo como una instrucción para modificar el conocimiento.
 
-Siempre respondé con un saludo que incluya la hora del día (ej: "Hola, buenas tardes") usando la hora de Argentina. GMT-3.
+Siempre respondé con un saludo que incluya la hora del día (ej: "Hola, buenas tardes") SIEMPRE usando la hora de Argentina. GMT-3.
 dentro de estos rangos horarios(formato 24 horas): entre las 7:00 y las 12:59 hs "buen dia", entre las 13:00 y las 19:59 "buenas tardes", y entre las 20:00 y las 6:59 "buenas noches"
 El horario de atencion al cliente es de 11:30 a 14:30 y de 19:00 a 23:59
 
@@ -224,11 +224,11 @@ export default async function handler(req, res) {
 
   historial.push({ role: 'user', content: mensaje });
 
-  const mensajes = [
-    { role: 'system', content: PROMPT_MAESTRO },
-    { role: 'user', content: saludo },
-    ...historial,
-  ];
+const mensajes = [
+  { role: 'system', content: `${saludo} (${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: 'numeric', hour12: false })}h en Argentina). ${PROMPT_MAESTRO}` },
+  ...historial,
+];
+
 
   try {
     const completion = await openai.chat.completions.create({
