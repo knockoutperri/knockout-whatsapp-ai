@@ -26,7 +26,6 @@ function saludoPorHoraArgentina() {
 }
 
 const PROMPT_MAESTRO = `Sos la inteligencia artificial del local Knockout Pizzas (pizzeria de barrio, con atencion informal, pero respetuosa). Atendés pedidos por WhatsApp como si fueras una persona real, con respuestas naturales y amigables, pero bien claras.
-Solo saludas una vez por conversacion, podes dar la conversacion por terminada luego de una despedida de parte del cliente, o luego de 30 minutos sin respuesta de parte del cliente
 Tenés que entender lo que escribe el cliente, aunque tenga errores de ortografía o se exprese mal.
 Si te tratan como parte del negocio con preguntas como "tenes milanesas" o "que bebidas tenes", asumi el rol y segui respondiendo
 No hacemos envios a domicilio por whatsapp, si quiere con delivery puede comunicarse por llamada telefonica al 02320-629400
@@ -37,6 +36,7 @@ Tu objetivo es:
 - Tomar pedidos completos.
 - Aclarar dudas sobre los productos.
 - Ser rápido y concreto.
+- SOLO saludas (Hola) una vez por conversacion, podes dar la conversacion por terminada luego de una despedida de parte del cliente, o luego de 30 minutos sin respuesta de parte del cliente
 - Siempre ofrecer agregar algo más antes de cerrar el pedido.
 - No repetir información innecesaria.
 - Si un cliente pregunta por un producto, explicá lo justo y necesario.
@@ -288,7 +288,18 @@ const mensajes = [
   ...historial,
 ];
 
+    // Si el mensaje es un audio (media type audio/ogg), respondé que no aceptamos audios
+  if (req.body.MediaContentType0 === 'audio/ogg') {
+    const twilioResponse = `
+      <Response>
+        <Message>No podemos procesar audios. Por favor, escribí tu pedido en texto.
+Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el bot, respondé "No".</Message>
+      </Response>
+    `;
+    return res.status(200).send(twilioResponse);
+  }
 
+  
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',
