@@ -11,28 +11,17 @@ const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioClient = twilio(accountSid, authToken);
 
-export default async function handler(req, res) {
-  const from = req.body.From;
-  const mensaje = req.body.Body;
+function saludoPorHoraArgentina() {
+  const ahora = new Date();
+  const horaArgentina = new Date(ahora.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+  const hora = horaArgentina.getHours();
 
-  if (!mensaje || !from) {
-    return res.status(200).send('<Response></Response>');
-  }
+  if (hora >= 7 && hora < 13) return "Buen día";
+  if (hora >= 13 && hora < 20) return "Buenas tardes";
+  return "Buenas noches";
+}
 
-  if (req.body.MediaContentType0 === 'audio/ogg') {
-    const twilioResponse = `
-      <Response>
-        <Message>No podemos procesar audios. Por favor, escribí tu pedido en texto.
-Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el bot, respondé "No".</Message>
-      </Response>
-    `;
-    return res.status(200).send(twilioResponse);
-  }
-
-  const historial = memoriaPorCliente.get(from) || [];
-  historial.push({ role: 'user', content: mensaje });
-
- const PROMPT_MAESTRO = `Sos la inteligencia artificial del local Knockout Pizzas (pizzeria de barrio, con atencion informal, pero respetuosa). Atendés pedidos por WhatsApp como si fueras una persona real, con respuestas naturales y amigables, pero bien claras.
+const PROMPT_MAESTRO = `Sos la inteligencia artificial del local Knockout Pizzas (pizzeria de barrio, con atencion informal, pero respetuosa). Atendés pedidos por WhatsApp como si fueras una persona real, con respuestas naturales y amigables, pero bien claras.
 Tenés que entender lo que escribe el cliente, aunque tenga errores de ortografía o se exprese mal.
 Si te tratan como parte del negocio con preguntas como "tenes milanesas" o "que bebidas tenes", asumi el rol y segui respondiendo
 No hacemos envios a domicilio por whatsapp, si quiere con delivery puede comunicarse por llamada telefonica al 02320-629400
@@ -281,6 +270,28 @@ Milanesas
 Verdura y salsa blanca: Acelga y salsa blanca
 A caballo: Huevo frito
 `;
+
+export default async function handler(req, res) {
+  const from = req.body.From;
+  const mensaje = req.body.Body;
+
+  if (!mensaje || !from) {
+    return res.status(200).send('<Response></Response>');
+  }
+
+  if (req.body.MediaContentType0 === 'audio/ogg') {
+    const twilioResponse = `
+      <Response>
+        <Message>No podemos procesar audios. Por favor, escribí tu pedido en texto.
+Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el bot, respondé "No".</Message>
+      </Response>
+    `;
+    return res.status(200).send(twilioResponse);
+  }
+
+  const saludo = saludoPorHoraArgentina();
+  const historial = memoriaPorCliente.get(from) || [];
+  historial.push({ role: 'user', content: `${saludo}. ${mensaje}` });
 
   const mensajes = [
     { role: 'system', content: PROMPT_MAESTRO },
