@@ -11,18 +11,6 @@ const twilioClient = twilio(accountSid, authToken);
 
 const memoriaPorCliente = new Map();
 
-function saludoPorHoraArgentina() {
-  const hora = new Date().toLocaleString('es-AR', {
-    timeZone: 'America/Argentina/Buenos_Aires',
-    hour: 'numeric',
-    hour12: false,
-  });
-  const horaNum = parseInt(hora);
-  if (horaNum >= 7 && horaNum < 13) return 'Hola, buen día.';
-  if (horaNum >= 13 && horaNum < 20) return 'Hola, buenas tardes.';
-  return 'Hola, buenas noches.';
-}
-
 const PROMPT_MAESTRO = `Sos la inteligencia artificial del local Knockout Pizzas (pizzeria de barrio, con atencion informal, pero respetuosa). Atendés pedidos por WhatsApp como si fueras una persona real, con respuestas naturales y amigables, pero bien claras.
 Tenés que entender lo que escribe el cliente, aunque tenga errores de ortografía o se exprese mal.
 Si te tratan como parte del negocio con preguntas como "tenes milanesas" o "que bebidas tenes", asumi el rol y segui respondiendo
