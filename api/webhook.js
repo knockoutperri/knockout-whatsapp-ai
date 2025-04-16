@@ -3,7 +3,6 @@ import twilio from 'twilio';
 
 const memoriaPorCliente = new Map();
 
-
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -11,18 +10,6 @@ const openai = new OpenAI({
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioClient = twilio(accountSid, authToken);
-
-const historial = memoriaPorCliente.get(from) || [];
-historial.push({ role: 'user', content: mensaje });
-
-const mensajes = [
-  {
-    role: 'system',
-    content: `Sos la inteligencia artificial del local Knockout Pizzas. Solo saludás una vez por conversación, podés dar la conversación por terminada si ya se resolvió todo. Tenés que interpretar los mensajes como lo haría un humano.`
-  },
-  ...historial,
-];
-
 
 const PROMPT_MAESTRO = `Sos la inteligencia artificial del local Knockout Pizzas (pizzeria de barrio, con atencion informal, pero respetuosa). Atendés pedidos por WhatsApp como si fueras una persona real, con respuestas naturales y amigables, pero bien claras.
 Tenés que entender lo que escribe el cliente, aunque tenga errores de ortografía o se exprese mal.
@@ -274,6 +261,18 @@ Verdura y salsa blanca: Acelga y salsa blanca
 A caballo: Huevo frito
 `;
 
+function saludoPorHoraArgentina() {
+  const hora = new Date().toLocaleString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    hour: 'numeric',
+    hour12: false,
+  });
+  const horaNum = parseInt(hora);
+  if (horaNum >= 7 && horaNum < 13) return 'Hola, buen día.';
+  if (horaNum >= 13 && horaNum < 20) return 'Hola, buenas tardes.';
+  return 'Hola, buenas noches.';
+}
+
 export default async function handler(req, res) {
   const from = req.body.From;
   const mensaje = req.body.Body;
@@ -291,6 +290,9 @@ Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el 
     `;
     return res.status(200).send(twilioResponse);
   }
+
+  const saludo = saludoPorHoraArgentina();
+  const historial = memoriaPorCliente.get(from) || [];
 
   historial.push({ role: 'user', content: mensaje });
 
