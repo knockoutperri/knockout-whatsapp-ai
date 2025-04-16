@@ -289,17 +289,20 @@ Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el 
   }
 
   const saludo = saludoPorHoraArgentina();
-  const historial = memoriaPorCliente.get(from) || [];
-  
-if (historial.length === 0) {
-  historial.push({ role: 'user', content: mensaje });
-}
+ const historial = memoriaPorCliente.get(from) || [];
 
+const esPrimerMensaje = historial.length === 0;
+
+historial.push({
+  role: 'user',
+  content: esPrimerMensaje ? `INICIO_CONVERSACION. ${mensaje}` : mensaje
+});
 
 const mensajes = [
   { role: 'system', content: PROMPT_MAESTRO },
   ...historial,
 ];
+
 
 
   try {
