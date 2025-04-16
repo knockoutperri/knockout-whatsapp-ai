@@ -295,7 +295,7 @@ const esPrimerMensaje = historial.length === 0;
 
 historial.push({
   role: 'user',
-  content: esPrimerMensaje ? `INICIO_CONVERSACION. ${mensaje}` : mensaje
+  content: mensaje
 });
 
 const mensajes = [
