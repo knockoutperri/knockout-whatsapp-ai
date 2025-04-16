@@ -279,9 +279,6 @@ Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el 
     return res.status(200).send(twilioResponse);
   }
 
-  const saludo = saludoPorHoraArgentina();
-  const historial = memoriaPorCliente.get(from) || [];
-
   historial.push({ role: 'user', content: mensaje });
 
   const mensajes = [
