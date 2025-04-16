@@ -19,22 +19,18 @@ export default async function handler(req, res) {
     return res.status(200).send('<Response></Response>');
   }
 
+  if (req.body.MediaContentType0 === 'audio/ogg') {
+    const twilioResponse = `
+      <Response>
+        <Message>No podemos procesar audios. Por favor, escribí tu pedido en texto.
+Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el bot, respondé "No".</Message>
+      </Response>
+    `;
+    return res.status(200).send(twilioResponse);
+  }
+
   const historial = memoriaPorCliente.get(from) || [];
   historial.push({ role: 'user', content: mensaje });
-
-  // SALUDO AUTOMÁTICO AL PRIMER MENSAJE
-  if (historial.length === 1) {
-    const ahora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
-    const hora = ahora.getHours();
-    let saludo = "Hola";
-    if (hora >= 7 && hora < 13) saludo = "Buen día";
-    else if (hora >= 13 && hora < 20) saludo = "Buenas tardes";
-    else saludo = "Buenas noches";
-
-    const bienvenida = `${saludo}! ¿En qué puedo ayudarte hoy? ¿Querés hacer un pedido o tenés alguna consulta sobre nuestro menú?`;
-    memoriaPorCliente.set(from, historial); // guardar historial aunque sea el saludo
-    return res.status(200).send(`<Response><Message>${bienvenida}</Message></Response>`);
-  }
 
  const PROMPT_MAESTRO = `Sos la inteligencia artificial del local Knockout Pizzas (pizzeria de barrio, con atencion informal, pero respetuosa). Atendés pedidos por WhatsApp como si fueras una persona real, con respuestas naturales y amigables, pero bien claras.
 Tenés que entender lo que escribe el cliente, aunque tenga errores de ortografía o se exprese mal.
@@ -44,6 +40,8 @@ No hacemos envios a domicilio por whatsapp, si quiere con delivery puede comunic
 Por el momento estas a prueba, por lo que si hay algo que no entendes tenes la libertad de hablarme y contarme algun error o falta de reglas para tu correcto funcionamiento. si hay algo que no sabes como responder, no te quedes sin responder, al estar a prueba podes decirme "no se que responder" y yo me voy a encargar de arreglarlo
 
 Tu objetivo es:
+- Siempre responder (solo en el primer mensaje inicial de la conversacion) con un saludo que incluya la hora del día (ej: "Hola, buenas tardes") SIEMPRE usando la hora de Argentina. GMT-3.
+dentro de estos rangos horarios(formato 24 horas): entre las 7:00 y las 12:59 hs "buen dia", entre las 13:00 y las 19:59 "buenas tardes", y entre las 20:00 y las 6:59 "buenas noches"
 - Tomar pedidos completos.
 - Aclarar dudas sobre los productos.
 - Ser rápido y concreto.
