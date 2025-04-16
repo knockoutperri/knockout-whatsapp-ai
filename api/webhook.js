@@ -13,17 +13,6 @@ const twilioClient = twilio(accountSid, authToken);
 
 const memoriaPorCliente = new Map();
 
-function saludoPorHoraArgentina() {
-  const hora = new Date().toLocaleString('es-AR', {
-    timeZone: 'America/Argentina/Buenos_Aires',
-    hour: 'numeric',
-    hour12: false,
-  });
-  const horaNum = parseInt(hora);
-  if (horaNum >= 6 && horaNum < 13) return 'Hola, buen día.';
-  if (horaNum >= 13 && horaNum < 20) return 'Hola, buenas tardes.';
-  return 'Hola, buenas noches.';
-}
 
 const PROMPT_MAESTRO = `Sos la inteligencia artificial del local Knockout Pizzas (pizzeria de barrio, con atencion informal, pero respetuosa). Atendés pedidos por WhatsApp como si fueras una persona real, con respuestas naturales y amigables, pero bien claras.
 Tenés que entender lo que escribe el cliente, aunque tenga errores de ortografía o se exprese mal.
@@ -33,6 +22,8 @@ No hacemos envios a domicilio por whatsapp, si quiere con delivery puede comunic
 Por el momento estas a prueba, por lo que si hay algo que no entendes tenes la libertad de hablarme y contarme algun error o falta de reglas para tu correcto funcionamiento. si hay algo que no sabes como responder, no te quedes sin responder, al estar a prueba podes decirme "no se que responder" y yo me voy a encargar de arreglarlo
 
 Tu objetivo es:
+- Siempre responder con un saludo que incluya la hora del día (ej: "Hola, buenas tardes") SIEMPRE usando la hora de Argentina. GMT-3.
+dentro de estos rangos horarios(formato 24 horas): entre las 7:00 y las 12:59 hs "buen dia", entre las 13:00 y las 19:59 "buenas tardes", y entre las 20:00 y las 6:59 "buenas noches"
 - Tomar pedidos completos.
 - Aclarar dudas sobre los productos.
 - Ser rápido y concreto.
@@ -281,15 +272,6 @@ export default async function handler(req, res) {
     return res.status(200).send('<Response></Response>');
   }
 
-  const saludo = saludoPorHoraArgentina();
-  const historial = memoriaPorCliente.get(from) || [];
-
-  historial.push({ role: 'user', content: mensaje });
-
-const mensajes = [
-  { role: 'system', content: `${saludo} (${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: 'numeric', hour12: false })}h en Argentina). ${PROMPT_MAESTRO}` },
-  ...historial,
-];
 
     // Si el mensaje es un audio (media type audio/ogg), respondé que no aceptamos audios
   if (req.body.MediaContentType0 === 'audio/ogg') {
