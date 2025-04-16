@@ -296,11 +296,14 @@ Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el 
 
   historial.push({ role: 'user', content: mensaje });
 
-  const mensajes = [
-    { role: 'system', content: PROMPT_MAESTRO },
-    { role: 'user', content: saludo },
-    ...historial,
-  ];
+ const mensajes = [
+  {
+    role: 'system',
+    content: `${saludo} ${PROMPT_MAESTRO}`
+  },
+  ...historial,
+];
+
 
   try {
     const completion = await openai.chat.completions.create({
