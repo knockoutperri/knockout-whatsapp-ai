@@ -9,7 +9,17 @@ const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioClient = twilio(accountSid, authToken);
 
-const memoriaPorCliente = new Map();
+const historial = memoriaPorCliente.get(from) || [];
+historial.push({ role: 'user', content: mensaje });
+
+const mensajes = [
+  {
+    role: 'system',
+    content: `Sos la inteligencia artificial del local Knockout Pizzas. Solo saludás una vez por conversación, podés dar la conversación por terminada si ya se resolvió todo. Tenés que interpretar los mensajes como lo haría un humano.`
+  },
+  ...historial,
+];
+
 
 const PROMPT_MAESTRO = `Sos la inteligencia artificial del local Knockout Pizzas (pizzeria de barrio, con atencion informal, pero respetuosa). Atendés pedidos por WhatsApp como si fueras una persona real, con respuestas naturales y amigables, pero bien claras.
 Tenés que entender lo que escribe el cliente, aunque tenga errores de ortografía o se exprese mal.
