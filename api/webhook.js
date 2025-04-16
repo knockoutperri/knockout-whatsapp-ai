@@ -1,5 +1,3 @@
-// webhook.js FINAL – COMPLETO, FUNCIONAL y con MENÚ y PROMPT ADENTRO – para Knockout Pizzas
-
 import OpenAI from 'openai';
 import twilio from 'twilio';
 
@@ -13,6 +11,17 @@ const twilioClient = twilio(accountSid, authToken);
 
 const memoriaPorCliente = new Map();
 
+function saludoPorHoraArgentina() {
+  const hora = new Date().toLocaleString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    hour: 'numeric',
+    hour12: false,
+  });
+  const horaNum = parseInt(hora);
+  if (horaNum >= 7 && horaNum < 13) return 'Hola, buen día.';
+  if (horaNum >= 13 && horaNum < 20) return 'Hola, buenas tardes.';
+  return 'Hola, buenas noches.';
+}
 
 const PROMPT_MAESTRO = `Sos la inteligencia artificial del local Knockout Pizzas (pizzeria de barrio, con atencion informal, pero respetuosa). Atendés pedidos por WhatsApp como si fueras una persona real, con respuestas naturales y amigables, pero bien claras.
 Tenés que entender lo que escribe el cliente, aunque tenga errores de ortografía o se exprese mal.
@@ -272,8 +281,6 @@ export default async function handler(req, res) {
     return res.status(200).send('<Response></Response>');
   }
 
-
-    // Si el mensaje es un audio (media type audio/ogg), respondé que no aceptamos audios
   if (req.body.MediaContentType0 === 'audio/ogg') {
     const twilioResponse = `
       <Response>
@@ -284,7 +291,17 @@ Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el 
     return res.status(200).send(twilioResponse);
   }
 
-  
+  const saludo = saludoPorHoraArgentina();
+  const historial = memoriaPorCliente.get(from) || [];
+
+  historial.push({ role: 'user', content: mensaje });
+
+  const mensajes = [
+    { role: 'system', content: PROMPT_MAESTRO },
+    { role: 'user', content: saludo },
+    ...historial,
+  ];
+
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',
