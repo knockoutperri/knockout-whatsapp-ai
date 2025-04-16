@@ -19,8 +19,6 @@ No hacemos envios a domicilio por whatsapp, si quiere con delivery puede comunic
 Por el momento estas a prueba, por lo que si hay algo que no entendes tenes la libertad de hablarme y contarme algun error o falta de reglas para tu correcto funcionamiento. si hay algo que no sabes como responder, no te quedes sin responder, al estar a prueba podes decirme "no se que responder" y yo me voy a encargar de arreglarlo
 
 Tu objetivo es:
-- Siempre responder (solo en el primer mensaje inicial de la conversacion) con un saludo que incluya la hora del día (ej: "Hola, buenas tardes") SIEMPRE usando la hora de Argentina. GMT-3.
-dentro de estos rangos horarios(formato 24 horas): entre las 7:00 y las 12:59 hs "buen dia", entre las 13:00 y las 19:59 "buenas tardes", y entre las 20:00 y las 6:59 "buenas noches"
 - Tomar pedidos completos.
 - Aclarar dudas sobre los productos.
 - Ser rápido y concreto.
@@ -303,8 +301,28 @@ Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el 
   },
   ...historial,
 ];
+  
+function obtenerSaludoPorHoraArgentina() {
+  const ahora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
+  const hora = ahora.getHours();
 
+  if (hora >= 7 && hora < 13) return "Buen día";
+  if (hora >= 13 && hora < 20) return "Buenas tardes";
+  return "Buenas noches";
+}
 
+if (historial.length === 1) {
+  const saludo = obtenerSaludoPorHoraArgentina();
+  const bienvenida = `${saludo}! ¿En qué puedo ayudarte hoy? ¿Querés hacer un pedido o tenés alguna consulta sobre nuestro menú?`;
+
+  const twilioResponse = `
+    <Response>
+      <Message>${bienvenida}</Message>
+    </Response>
+  `;
+  return res.status(200).send(twilioResponse);
+}
+  
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',
