@@ -289,12 +289,18 @@ Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el 
 
   const saludo = saludoPorHoraArgentina();
   const historial = memoriaPorCliente.get(from) || [];
+  
+if (historial.length === 0) {
   historial.push({ role: 'user', content: `${saludo}. ${mensaje}` });
+} else {
+  historial.push({ role: 'user', content: mensaje });
+}
 
-  const mensajes = [
-    { role: 'system', content: PROMPT_MAESTRO },
-    ...historial,
-  ];
+const mensajes = [
+  { role: 'system', content: PROMPT_MAESTRO },
+  ...historial,
+];
+
 
   try {
     const completion = await openai.chat.completions.create({
