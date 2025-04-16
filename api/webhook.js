@@ -11,7 +11,32 @@ const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioClient = twilio(accountSid, authToken);
 
-const PROMPT_MAESTRO = `Sos la inteligencia artificial del local Knockout Pizzas (pizzeria de barrio, con atencion informal, pero respetuosa). Atendés pedidos por WhatsApp como si fueras una persona real, con respuestas naturales y amigables, pero bien claras.
+export default async function handler(req, res) {
+  const from = req.body.From;
+  const mensaje = req.body.Body;
+
+  if (!mensaje || !from) {
+    return res.status(200).send('<Response></Response>');
+  }
+
+  const historial = memoriaPorCliente.get(from) || [];
+  historial.push({ role: 'user', content: mensaje });
+
+  // SALUDO AUTOMÁTICO AL PRIMER MENSAJE
+  if (historial.length === 1) {
+    const ahora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
+    const hora = ahora.getHours();
+    let saludo = "Hola";
+    if (hora >= 7 && hora < 13) saludo = "Buen día";
+    else if (hora >= 13 && hora < 20) saludo = "Buenas tardes";
+    else saludo = "Buenas noches";
+
+    const bienvenida = `${saludo}! ¿En qué puedo ayudarte hoy? ¿Querés hacer un pedido o tenés alguna consulta sobre nuestro menú?`;
+    memoriaPorCliente.set(from, historial); // guardar historial aunque sea el saludo
+    return res.status(200).send(`<Response><Message>${bienvenida}</Message></Response>`);
+  }
+
+ const PROMPT_MAESTRO = `Sos la inteligencia artificial del local Knockout Pizzas (pizzeria de barrio, con atencion informal, pero respetuosa). Atendés pedidos por WhatsApp como si fueras una persona real, con respuestas naturales y amigables, pero bien claras.
 Tenés que entender lo que escribe el cliente, aunque tenga errores de ortografía o se exprese mal.
 Si te tratan como parte del negocio con preguntas como "tenes milanesas" o "que bebidas tenes", asumi el rol y segui respondiendo
 No hacemos envios a domicilio por whatsapp, si quiere con delivery puede comunicarse por llamada telefonica al 02320-629400
@@ -259,70 +284,11 @@ Verdura y salsa blanca: Acelga y salsa blanca
 A caballo: Huevo frito
 `;
 
-function saludoPorHoraArgentina() {
-  const hora = new Date().toLocaleString('es-AR', {
-    timeZone: 'America/Argentina/Buenos_Aires',
-    hour: 'numeric',
-    hour12: false,
-  });
-  const horaNum = parseInt(hora);
-  if (horaNum >= 7 && horaNum < 13) return 'Hola, buen día.';
-  if (horaNum >= 13 && horaNum < 20) return 'Hola, buenas tardes.';
-  return 'Hola, buenas noches.';
-}
+  const mensajes = [
+    { role: 'system', content: PROMPT_MAESTRO },
+    ...historial,
+  ];
 
-export default async function handler(req, res) {
-  const from = req.body.From;
-  const mensaje = req.body.Body;
-
-  if (!mensaje || !from) {
-    return res.status(200).send('<Response></Response>');
-  }
-
-  if (req.body.MediaContentType0 === 'audio/ogg') {
-    const twilioResponse = `
-      <Response>
-        <Message>No podemos procesar audios. Por favor, escribí tu pedido en texto.
-Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el bot, respondé "No".</Message>
-      </Response>
-    `;
-    return res.status(200).send(twilioResponse);
-  }
-
-  const saludo = saludoPorHoraArgentina();
-  const historial = memoriaPorCliente.get(from) || [];
-
-  historial.push({ role: 'user', content: mensaje });
-
- const mensajes = [
-  {
-    role: 'system',
-    content: `${saludo} ${PROMPT_MAESTRO}`
-  },
-  ...historial,
-];
-  
-function obtenerSaludoPorHoraArgentina() {
-  const ahora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
-  const hora = ahora.getHours();
-
-  if (hora >= 7 && hora < 13) return "Buen día";
-  if (hora >= 13 && hora < 20) return "Buenas tardes";
-  return "Buenas noches";
-}
-
-if (historial.length === 1) {
-  const saludo = obtenerSaludoPorHoraArgentina();
-  const bienvenida = `${saludo}! ¿En qué puedo ayudarte hoy? ¿Querés hacer un pedido o tenés alguna consulta sobre nuestro menú?`;
-
-  const twilioResponse = `
-    <Response>
-      <Message>${bienvenida}</Message>
-    </Response>
-  `;
-  return res.status(200).send(twilioResponse);
-}
-  
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',
