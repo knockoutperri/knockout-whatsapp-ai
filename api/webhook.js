@@ -1,6 +1,9 @@
 import OpenAI from 'openai';
 import twilio from 'twilio';
 
+const memoriaPorCliente = new Map();
+
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
