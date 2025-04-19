@@ -282,6 +282,7 @@ export default async function handler(req, res) {
     return res.status(200).send('<Response></Response>');
   }
 
+  // --- Si mandan audio, responder que no se puede procesar ---
   if (req.body.MediaContentType0 === 'audio/ogg') {
     const twilioResponse = `
       <Response>
@@ -292,22 +293,34 @@ Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el 
     return res.status(200).send(twilioResponse);
   }
 
+  // --- Si piden ver el menú / la carta, responder directo con el link ---
+  const texto = mensaje.toLowerCase();
+  if (texto.includes("menú") || texto.includes("menu") || texto.includes("la carta") || texto.includes("ver los precios")) {
+    const twilioResponse = `
+      <Response>
+        <Message>
+Acá te dejo el menú completo con fotos y precios actualizados:
+https://drive.google.com/file/d/1nWPxJQPft7MYvqe5SOI1lRhGVPmXdNms/view
+        </Message>
+      </Response>
+    `;
+    return res.status(200).send(twilioResponse);
+  }
+
+  // --- Saludo por hora y memoria por cliente ---
   const saludo = saludoPorHoraArgentina();
- const historial = memoriaPorCliente.get(from) || [];
+  const historial = memoriaPorCliente.get(from) || [];
+  const esPrimerMensaje = historial.length === 0;
 
-const esPrimerMensaje = historial.length === 0;
+  historial.push({
+    role: 'user',
+    content: mensaje
+  });
 
-historial.push({
-  role: 'user',
-  content: mensaje
-});
-
-const mensajes = [
-  { role: 'system', content: PROMPT_MAESTRO },
-  ...historial,
-];
-
-
+  const mensajes = [
+    { role: 'system', content: PROMPT_MAESTRO },
+    ...historial,
+  ];
 
   try {
     const completion = await openai.chat.completions.create({
