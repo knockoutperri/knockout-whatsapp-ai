@@ -276,49 +276,61 @@ A caballo: Huevo frito
 
 export default async function handler(req, res) {
   const from = req.body.From;
-  const mensaje = req.body.Body;
+  const mensaje = req.body.Body?.trim() || '';
+  const tipoMedia = req.body.MediaContentType0 || '';
 
-  if (!mensaje || !from) {
+  if (!mensaje && !tipoMedia) {
     return res.status(200).send('<Response></Response>');
   }
 
-  // --- Si mandan audio, responder que no se puede procesar ---
-  if (req.body.MediaContentType0 === 'audio/ogg') {
-    const twilioResponse = `
+  // AUDIO
+  if (tipoMedia === 'audio/ogg') {
+    return res.status(200).send(`
       <Response>
         <Message>No podemos procesar audios. Por favor, escribí tu pedido en texto.
 Si necesitás hablar con una persona, respondé "Sí". Si querés seguir con el bot, respondé "No".</Message>
       </Response>
-    `;
-    return res.status(200).send(twilioResponse);
+    `);
   }
 
-  // --- Si piden ver el menú / la carta, responder directo con el link ---
-  const texto = mensaje.toLowerCase();
-  if (texto.includes("menú") || texto.includes("menu") || texto.includes("la carta") || texto.includes("ver los precios")) {
-    const twilioResponse = `
+  // IMAGEN
+  if (tipoMedia.startsWith('image/')) {
+    return res.status(200).send(`
       <Response>
-        <Message>
-Acá te dejo el menú completo con fotos y precios actualizados:
-https://drive.google.com/file/d/1nWPxJQPft7MYvqe5SOI1lRhGVPmXdNms/view
-        </Message>
+        <Message>No podemos recibir imágenes por este medio. Por favor, escribí tu pedido en texto.</Message>
       </Response>
-    `;
-    return res.status(200).send(twilioResponse);
+    `);
   }
 
-  // --- Saludo por hora y memoria por cliente ---
+  // PEDIDO DE VER MENÚ
+  const mensajeLower = mensaje.toLowerCase();
+  const quiereMenu =
+    mensajeLower.includes("ver el menú") ||
+    mensajeLower.includes("ver menu") ||
+    mensajeLower.includes("la carta") ||
+    mensajeLower.includes("precios") ||
+    mensajeLower.includes("tenés carta") ||
+    mensajeLower.includes("tenes carta");
+
+  if (quiereMenu) {
+    return res.status(200).send(`
+      <Response>
+        <Message mediaUrl="https://i.imgur.com/YxDHo49.jpeg">Te dejo el menú de pizzas.</Message>
+        <Message mediaUrl="https://i.imgur.com/vWZpNG3.jpeg">Y acá tenés el menú de milanesas.</Message>
+      </Response>
+    `);
+  }
+
+  // Saludo si es el primer mensaje
   const saludo = saludoPorHoraArgentina();
   const historial = memoriaPorCliente.get(from) || [];
   const esPrimerMensaje = historial.length === 0;
 
-  historial.push({
-    role: 'user',
-    content: mensaje
-  });
+  historial.push({ role: 'user', content: mensaje });
 
   const mensajes = [
     { role: 'system', content: PROMPT_MAESTRO },
+    ...(esPrimerMensaje ? [{ role: 'user', content: `Hola, ${saludo}` }] : []),
     ...historial,
   ];
 
@@ -329,24 +341,26 @@ https://drive.google.com/file/d/1nWPxJQPft7MYvqe5SOI1lRhGVPmXdNms/view
       temperature: 0.7,
     });
 
-    const respuesta = completion.choices[0].message.content;
+    let respuesta = completion.choices[0]?.message?.content?.trim() || '';
+
+    if (respuesta === '') {
+      respuesta = 'Disculpá, no sé bien qué responderte. ¿Podés escribirlo de otra forma?';
+    }
+
     historial.push({ role: 'assistant', content: respuesta });
     memoriaPorCliente.set(from, historial);
 
-    const twilioResponse = `
+    return res.status(200).send(`
       <Response>
         <Message>${respuesta}</Message>
       </Response>
-    `;
-
-    return res.status(200).send(twilioResponse);
+    `);
   } catch (error) {
-    console.error('Error:', error?.response?.data || error.message);
-    const fallback = `
+    console.error('ERROR:', error?.response?.data || error.message);
+    return res.status(200).send(`
       <Response>
         <Message>Ups, hubo un error. Por favor, intentá más tarde.</Message>
       </Response>
-    `;
-    return res.status(200).send(fallback);
+    `);
   }
 }
