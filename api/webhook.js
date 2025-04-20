@@ -304,10 +304,10 @@ https://drive.google.com/file/d/1nWPxJQPft7MYvqe5SOI1lRhGVPmXdNms/view</Message>
   const historial = memoriaPorCliente.get(from) || [];
   const esPrimerMensaje = historial.length === 0;
 
-  historial.push({
-    role: 'user',
-    content: esPrimerMensaje ? ${saludo}. ${mensaje} : mensaje
-  });
+historial.push({
+  role: 'user',
+  content: esPrimerMensaje ? `${saludo}. ${mensaje}` : mensaje,
+});
 
   const mensajes = [
     { role: 'system', content: PROMPT_MAESTRO },
